@@ -83,6 +83,20 @@ export function BluetoothPrinterProvider({ children }) {
   const disconnectHandlerRef = useRef(null);
 
   /**
+   * Add job to print queue
+   */
+  const addToQueue = useCallback((job) => {
+    setPrintQueue(prev => {
+      if (prev.length >= 10) {
+        toast.warning('Print queue full. Please wait.');
+        return prev;
+      }
+      return [...prev, { ...job, id: Date.now().toString(), timestamp: Date.now(), retryCount: 0 }];
+    });
+    toast.info('Print job queued');
+  }, []);
+
+  /**
    * Load device info from localStorage
    */
   const loadDeviceInfo = useCallback(() => {
@@ -803,20 +817,6 @@ export function BluetoothPrinterProvider({ children }) {
       throw error;
     }
   }, [isConnected, sendToPrinter, addToQueue]);
-
-  /**
-   * Add job to print queue
-   */
-  const addToQueue = useCallback((job) => {
-    setPrintQueue(prev => {
-      if (prev.length >= 10) {
-        toast.warning('Print queue full. Please wait.');
-        return prev;
-      }
-      return [...prev, { ...job, id: Date.now().toString(), timestamp: Date.now(), retryCount: 0 }];
-    });
-    toast.info('Print job queued');
-  }, []);
 
   /**
    * Process print queue
