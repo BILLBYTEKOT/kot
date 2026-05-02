@@ -15,7 +15,7 @@ const PWAHomePage = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [saleOffer, setSaleOffer] = useState(null);
   const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
-  const SUPPORT_WHATSAPP = '918310832669';
+  const SUPPORT_WHATSAPP = '919353685739';
 
   useEffect(() => {
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches;

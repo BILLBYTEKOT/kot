@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import Layout from '../components/Layout';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -46,7 +46,7 @@ const HelpPage = ({ user }) => {
       questions: [
         {
           q: 'How do I create my first bill?',
-          a: 'Go to Orders → New Order, select a table, add items from your menu, and click "Create Order". Then go to Billing to complete the payment.'
+          a: 'Go to Orders â†’ New Order, select a table, add items from your menu, and click "Create Order". Then go to Billing to complete the payment.'
         },
         {
           q: 'How do I add menu items?',
@@ -54,7 +54,7 @@ const HelpPage = ({ user }) => {
         },
         {
           q: 'How do I add staff members?',
-          a: 'Go to Settings → Staff Management, click "Add Staff", enter their details, assign a role (Waiter, Cashier, Kitchen), and save.'
+          a: 'Go to Settings â†’ Staff Management, click "Add Staff", enter their details, assign a role (Waiter, Cashier, Kitchen), and save.'
         }
       ]
     },
@@ -69,7 +69,7 @@ const HelpPage = ({ user }) => {
         },
         {
           q: 'How do I print thermal receipts?',
-          a: 'After completing payment, click the Print button. Make sure your thermal printer is connected and configured in Settings → Printer.'
+          a: 'After completing payment, click the Print button. Make sure your thermal printer is connected and configured in Settings â†’ Printer.'
         },
         {
           q: 'Can I apply discounts?',
@@ -107,11 +107,11 @@ const HelpPage = ({ user }) => {
         },
         {
           q: 'What happens after the trial?',
-          a: 'After 7 days, subscribe for ₹999/year to continue using all features. You can also use coupon codes for discounts!'
+          a: 'After 7 days, subscribe for â‚¹999/year to continue using all features. You can also use coupon codes for discounts!'
         },
         {
           q: 'Do you have discount codes?',
-          a: 'Yes! Try LAUNCH50 (50% off), WELCOME25 (25% off), SAVE100 (₹100 off), EARLYBIRD (30% off), or FIRSTYEAR (40% off).'
+          a: 'Yes! Try LAUNCH50 (50% off), WELCOME25 (25% off), SAVE100 (â‚¹100 off), EARLYBIRD (30% off), or FIRSTYEAR (40% off).'
         }
       ]
     },
@@ -311,14 +311,14 @@ const HelpPage = ({ user }) => {
             </CardContent>
           </Card>
           
-          <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow cursor-pointer" onClick={() => window.open('https://wa.me/918310832669?text=Hi, I need help with BillByteKOT', '_blank')}>
+          <Card className="border-0 shadow-lg hover:shadow-xl transition-shadow cursor-pointer" onClick={() => window.open('https://wa.me/919353685739?text=Hi, I need help with BillByteKOT', '_blank')}>
             <CardContent className="p-6 text-center">
               <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-3">
                 <MessageCircle className="w-6 h-6 text-green-600" />
               </div>
               <h3 className="font-bold mb-1">WhatsApp Support</h3>
               <p className="text-sm text-gray-600">+91 83108 32669</p>
-              <p className="text-xs text-green-600 mt-1">Click to chat →</p>
+              <p className="text-xs text-green-600 mt-1">Click to chat â†’</p>
             </CardContent>
           </Card>
           
@@ -338,3 +338,4 @@ const HelpPage = ({ user }) => {
 };
 
 export default HelpPage;
+

@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui/button';
 import { Card, CardContent } from '../components/ui/card';
@@ -69,10 +69,10 @@ const CityLandingPage = () => {
     name: `BillByteKOT - ${city.name}`,
     description: `Best restaurant billing software in ${city.name}, ${city.state}. Trusted by ${city.stats.restaurantCount}+ restaurants.`,
     businessType: 'SoftwareApplication',
-    telephone: '+91-8310832669',
+    telephone: '+91-9353685739',
     email: 'support@billbytekot.in',
     url: `https://billbytekot.in/city/${city.slug}`,
-    priceRange: '₹999-₹4999',
+    priceRange: 'â‚¹999-â‚¹4999',
     address: {
       city: city.name,
       state: city.state,
@@ -89,11 +89,11 @@ const CityLandingPage = () => {
     questions: [
       {
         question: `What is the best KOT-first restaurant automation platform in ${city.name}?`,
-        answer: `BillByteKOT is the leading KOT-first restaurant automation platform in ${city.name}, trusted by ${city.stats.restaurantCount}+ restaurants. It offers KOT system, thermal printing, GST billing, and WhatsApp integration at just ₹999/year.`
+        answer: `BillByteKOT is the leading KOT-first restaurant automation platform in ${city.name}, trusted by ${city.stats.restaurantCount}+ restaurants. It offers KOT system, thermal printing, GST billing, and WhatsApp integration at just â‚¹999/year.`
       },
       {
         question: `How much does restaurant POS software cost in ${city.name}?`,
-        answer: `Restaurant POS software in ${city.name} typically costs ₹500-₹5000/month. BillByteKOT offers the best value at just ₹999/year (₹83/month) with all premium features included.`
+        answer: `Restaurant POS software in ${city.name} typically costs â‚¹500-â‚¹5000/month. BillByteKOT offers the best value at just â‚¹999/year (â‚¹83/month) with all premium features included.`
       },
       {
         question: `Does BillByteKOT work offline in ${city.name}?`,
@@ -175,7 +175,7 @@ const CityLandingPage = () => {
             <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
               Trusted by {city.stats.restaurantCount}+ restaurants in {city.name}. 
               Complete KOT system, thermal printing, GST billing & WhatsApp integration. 
-              Starting at just ₹999/year.
+              Starting at just â‚¹999/year.
             </p>
 
             {/* Stats Row */}
@@ -225,7 +225,7 @@ const CityLandingPage = () => {
 
             {/* Trust Indicators */}
             <div className="mt-8 text-sm text-gray-500">
-              ✓ No Credit Card Required ✓ 7-Day Free Trial ✓ 24/7 Support
+              âœ“ No Credit Card Required âœ“ 7-Day Free Trial âœ“ 24/7 Support
             </div>
           </div>
         </div>
@@ -460,7 +460,7 @@ const CityLandingPage = () => {
                 className="border-white text-white hover:bg-white hover:text-violet-600 h-12 px-8"
               >
                 <Phone className="w-5 h-5 mr-2" />
-                Call +91-8310832669
+                Call +91-9353685739
               </Button>
             </div>
 
@@ -505,7 +505,7 @@ const CityLandingPage = () => {
                   <Phone className="w-6 h-6 text-violet-600" />
                 </div>
                 <h3 className="font-semibold text-gray-900 mb-2">Call Us</h3>
-                <p className="text-gray-600">+91-8310832669</p>
+                <p className="text-gray-600">+91-9353685739</p>
                 <p className="text-sm text-gray-500">24/7 Support Available</p>
               </div>
 
@@ -576,16 +576,16 @@ const CityLandingPage = () => {
               <div>
                 <h4 className="font-semibold mb-4">Contact</h4>
                 <ul className="space-y-2 text-sm text-gray-400">
-                  <li>📞 +91-8310832669</li>
-                  <li>✉️ support@billbytekot.in</li>
-                  <li>🌐 billbytekot.in</li>
-                  <li>📍 Serving {city.name} & Beyond</li>
+                  <li>ðŸ“ž +91-9353685739</li>
+                  <li>âœ‰ï¸ support@billbytekot.in</li>
+                  <li>ðŸŒ billbytekot.in</li>
+                  <li>ðŸ“ Serving {city.name} & Beyond</li>
                 </ul>
               </div>
             </div>
 
             <div className="border-t border-gray-800 mt-8 pt-8 text-center text-sm text-gray-400">
-              <p>© 2025 BillByteKOT by BillByte Innovations. All rights reserved.</p>
+              <p>Â© 2025 BillByteKOT by BillByte Innovations. All rights reserved.</p>
               <p className="mt-2">
                 Proudly serving restaurants in {city.name}, {city.state} and across India.
               </p>

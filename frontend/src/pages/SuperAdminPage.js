@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+﻿import React, { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
 import { API } from '../App';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
@@ -102,7 +102,7 @@ const SuperAdminPage = () => {
             </div>
             <div style="padding:14px 28px 26px;background:#f8fafc;border-top:1px solid #e2e8f0;">
               <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:center;justify-content:space-between;">
-                <div style="font-size:12px;color:#64748b;">?? <a href="https://shorturl.at/CLDN3" style="color:#2563eb;text-decoration:none;">Play Store</a> &nbsp;?&nbsp; ?? <a href="https://wa.me/918310832669" style="color:#2563eb;text-decoration:none;">WhatsApp</a> &nbsp;?&nbsp; ?? <a href="tel:+918310832669" style="color:#2563eb;text-decoration:none;">Call +91 83108 32669</a></div>
+                <div style="font-size:12px;color:#64748b;">?? <a href="https://shorturl.at/CLDN3" style="color:#2563eb;text-decoration:none;">Play Store</a> &nbsp;?&nbsp; ?? <a href="https://wa.me/919353685739" style="color:#2563eb;text-decoration:none;">WhatsApp</a> &nbsp;?&nbsp; ?? <a href="tel:+919353685739" style="color:#2563eb;text-decoration:none;">Call +91 93536 85739</a></div>
                 <div style="font-size:12px;color:#94a3b8;">Reply to this email for help.</div>
               </div>
             </div>
@@ -134,7 +134,7 @@ const SuperAdminPage = () => {
             </div>
             <div style="padding:14px 28px 26px;background:#fff7ed;border-top:1px solid #fde68a;">
               <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:center;justify-content:space-between;">
-                <div style="font-size:12px;color:#7c2d12;">?? <a href="https://shorturl.at/CLDN3" style="color:#ea580c;text-decoration:none;">Play Store</a> &nbsp;?&nbsp; ?? <a href="https://wa.me/918310832669" style="color:#ea580c;text-decoration:none;">WhatsApp</a> &nbsp;?&nbsp; ?? <a href="tel:+918310832669" style="color:#ea580c;text-decoration:none;">Call +91 83108 32669</a></div>
+                <div style="font-size:12px;color:#7c2d12;">?? <a href="https://shorturl.at/CLDN3" style="color:#ea580c;text-decoration:none;">Play Store</a> &nbsp;?&nbsp; ?? <a href="https://wa.me/919353685739" style="color:#ea580c;text-decoration:none;">WhatsApp</a> &nbsp;?&nbsp; ?? <a href="tel:+919353685739" style="color:#ea580c;text-decoration:none;">Call +91 93536 85739</a></div>
                 <div style="font-size:12px;color:#9a3412;">Reply to this email for help.</div>
               </div>
             </div>
@@ -166,7 +166,7 @@ const SuperAdminPage = () => {
             </div>
             <div style="padding:14px 28px 26px;background:#f8fafc;border-top:1px solid #e2e8f0;">
               <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:center;justify-content:space-between;">
-                <div style="font-size:12px;color:#64748b;">?? <a href="https://shorturl.at/CLDN3" style="color:#2563eb;text-decoration:none;">Play Store</a> &nbsp;?&nbsp; ?? <a href="https://wa.me/918310832669" style="color:#2563eb;text-decoration:none;">WhatsApp</a> &nbsp;?&nbsp; ?? <a href="tel:+918310832669" style="color:#2563eb;text-decoration:none;">Call +91 83108 32669</a></div>
+                <div style="font-size:12px;color:#64748b;">?? <a href="https://shorturl.at/CLDN3" style="color:#2563eb;text-decoration:none;">Play Store</a> &nbsp;?&nbsp; ?? <a href="https://wa.me/919353685739" style="color:#2563eb;text-decoration:none;">WhatsApp</a> &nbsp;?&nbsp; ?? <a href="tel:+919353685739" style="color:#2563eb;text-decoration:none;">Call +91 93536 85739</a></div>
                 <div style="font-size:12px;color:#94a3b8;">Reply to this email for help.</div>
               </div>
             </div>
@@ -197,7 +197,7 @@ const SuperAdminPage = () => {
             </div>
             <div style="padding:14px 28px 26px;background:#f1f5f9;border-top:1px solid #e2e8f0;">
               <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:center;justify-content:space-between;">
-                <div style="font-size:12px;color:#64748b;">?? <a href="https://shorturl.at/CLDN3" style="color:#2563eb;text-decoration:none;">Play Store</a> &nbsp;?&nbsp; ?? <a href="https://wa.me/918310832669" style="color:#2563eb;text-decoration:none;">WhatsApp</a> &nbsp;?&nbsp; ?? <a href="tel:+918310832669" style="color:#2563eb;text-decoration:none;">Call +91 83108 32669</a></div>
+                <div style="font-size:12px;color:#64748b;">?? <a href="https://shorturl.at/CLDN3" style="color:#2563eb;text-decoration:none;">Play Store</a> &nbsp;?&nbsp; ?? <a href="https://wa.me/919353685739" style="color:#2563eb;text-decoration:none;">WhatsApp</a> &nbsp;?&nbsp; ?? <a href="tel:+919353685739" style="color:#2563eb;text-decoration:none;">Call +91 93536 85739</a></div>
                 <div style="font-size:12px;color:#94a3b8;">Reply to this email for help.</div>
               </div>
             </div>
@@ -228,7 +228,7 @@ const SuperAdminPage = () => {
             </div>
             <div style="padding:14px 28px 26px;background:#f0fdf4;border-top:1px solid #bbf7d0;">
               <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:center;justify-content:space-between;">
-                <div style="font-size:12px;color:#15803d;">?? <a href="https://shorturl.at/CLDN3" style="color:#16a34a;text-decoration:none;">Play Store</a> &nbsp;?&nbsp; ?? <a href="https://wa.me/918310832669" style="color:#16a34a;text-decoration:none;">WhatsApp</a> &nbsp;?&nbsp; ?? <a href="tel:+918310832669" style="color:#16a34a;text-decoration:none;">Call +91 83108 32669</a></div>
+                <div style="font-size:12px;color:#15803d;">?? <a href="https://shorturl.at/CLDN3" style="color:#16a34a;text-decoration:none;">Play Store</a> &nbsp;?&nbsp; ?? <a href="https://wa.me/919353685739" style="color:#16a34a;text-decoration:none;">WhatsApp</a> &nbsp;?&nbsp; ?? <a href="tel:+919353685739" style="color:#16a34a;text-decoration:none;">Call +91 93536 85739</a></div>
                 <div style="font-size:12px;color:#86efac;">Reply to this email for help.</div>
               </div>
             </div>
@@ -259,7 +259,7 @@ const SuperAdminPage = () => {
             </div>
             <div style="padding:14px 28px 26px;background:#ecfeff;border-top:1px solid #bae6fd;">
               <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:center;justify-content:space-between;">
-                <div style="font-size:12px;color:#0e7490;">?? <a href="https://shorturl.at/CLDN3" style="color:#0ea5e9;text-decoration:none;">Play Store</a> &nbsp;?&nbsp; ?? <a href="https://wa.me/918310832669" style="color:#0ea5e9;text-decoration:none;">WhatsApp</a> &nbsp;?&nbsp; ?? <a href="tel:+918310832669" style="color:#0ea5e9;text-decoration:none;">Call +91 83108 32669</a></div>
+                <div style="font-size:12px;color:#0e7490;">?? <a href="https://shorturl.at/CLDN3" style="color:#0ea5e9;text-decoration:none;">Play Store</a> &nbsp;?&nbsp; ?? <a href="https://wa.me/919353685739" style="color:#0ea5e9;text-decoration:none;">WhatsApp</a> &nbsp;?&nbsp; ?? <a href="tel:+919353685739" style="color:#0ea5e9;text-decoration:none;">Call +91 93536 85739</a></div>
                 <div style="font-size:12px;color:#7dd3fc;">Reply to this email for help.</div>
               </div>
             </div>
@@ -363,7 +363,7 @@ const SuperAdminPage = () => {
     original_price: 1999,
     sale_price: 1599,
     cta_text: 'Grab This Deal Now!',
-    urgency_text: '⚡ Limited slots available. Offer ends soon!'
+    urgency_text: 'âš¡ Limited slots available. Offer ends soon!'
   });
   const [showSaleOfferModal, setShowSaleOfferModal] = useState(false);
   const [savingSaleOffer, setSavingSaleOffer] = useState(false);
@@ -371,9 +371,9 @@ const SuperAdminPage = () => {
   // Pricing Management
   const [pricing, setPricing] = useState({
     regular_price: 1999,
-    regular_price_display: '₹1999',
+    regular_price_display: 'â‚¹1999',
     campaign_price: 1799,
-    campaign_price_display: '₹1799',
+    campaign_price_display: 'â‚¹1799',
     campaign_active: false,
     campaign_name: '',
     campaign_discount_percent: 10,
@@ -1745,7 +1745,7 @@ const SuperAdminPage = () => {
                     </CardHeader>
                     <CardContent>
                       <div className="text-3xl font-bold text-gray-900">
-                        ₹{(dashboard.overview.total_revenue || 0).toLocaleString()}
+                        â‚¹{(dashboard.overview.total_revenue || 0).toLocaleString()}
                       </div>
                       <div className="flex items-center gap-2 mt-2">
                         <span className="text-sm text-green-600 flex items-center gap-1">
@@ -2034,7 +2034,7 @@ const SuperAdminPage = () => {
                         const response = await axios.post(`${API}/super-admin/users/refresh-bill-counts`, {}, {
                           params: credentials
                         });
-                        toast.success(`✅ ${response.data.message}`);
+                        toast.success(`âœ… ${response.data.message}`);
                         await fetchUsers(); // Refresh the user list
                       } catch (error) {
                         toast.error('Failed to refresh bill counts');
@@ -2253,7 +2253,7 @@ const SuperAdminPage = () => {
                           <td className="p-3">
                             <div className="space-y-1">
                               <div className="text-sm font-medium">
-                                ₹{(user.subscription_amount || 0).toLocaleString()}
+                                â‚¹{(user.subscription_amount || 0).toLocaleString()}
                               </div>
                               <div className="text-xs text-gray-500">
                                 {user.subscription_months || 12} months
@@ -3059,7 +3059,7 @@ const SuperAdminPage = () => {
                     type="password"
                     value={newTeamMember.password}
                     onChange={(e) => setNewTeamMember({...newTeamMember, password: e.target.value})}
-                    placeholder="••••••••"
+                    placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
                     className="mt-1"
                   />
                 </div>
@@ -3224,7 +3224,7 @@ const SuperAdminPage = () => {
                       </select>
                     </div>
                     <div>
-                      <Label>Amount (₹)</Label>
+                      <Label>Amount (â‚¹)</Label>
                       <Input
                         type="number"
                         value={subscriptionAmount}
@@ -3289,7 +3289,7 @@ const SuperAdminPage = () => {
                     <p className="text-sm text-gray-600">To</p>
                     <p className="font-medium">{promoTarget.username || 'User'}</p>
                     <p className="text-sm text-gray-500">{promoTarget.email}</p>
-                    <p className="text-xs text-gray-500 mt-1">From: hello@billbytekot.in • Reply-To: support@billbytekot.in</p>
+                    <p className="text-xs text-gray-500 mt-1">From: hello@billbytekot.in â€¢ Reply-To: support@billbytekot.in</p>
                   </div>
 
                   <div className="grid grid-cols-3 gap-3 items-end">
@@ -3525,7 +3525,7 @@ const SuperAdminPage = () => {
                   <div className="space-y-2">
                     <Label className="flex items-center gap-2">
                       <DollarSign className="w-4 h-4 text-gray-500" />
-                      Regular Price (₹)
+                      Regular Price (â‚¹)
                     </Label>
                     <Input
                       type="number"
@@ -3541,7 +3541,7 @@ const SuperAdminPage = () => {
                   <div className="space-y-2">
                     <Label className="flex items-center gap-2">
                       <Tag className="w-4 h-4 text-gray-500" />
-                      Campaign Price (₹)
+                      Campaign Price (â‚¹)
                     </Label>
                     <Input
                       type="number"
@@ -3603,7 +3603,7 @@ const SuperAdminPage = () => {
                   <div className="space-y-2">
                     <Label className="flex items-center gap-2">
                       <Percent className="w-4 h-4 text-gray-500" />
-                      Referral Discount (₹)
+                      Referral Discount (â‚¹)
                     </Label>
                     <Input
                       type="number"
@@ -3619,7 +3619,7 @@ const SuperAdminPage = () => {
                   <div className="space-y-2">
                     <Label className="flex items-center gap-2">
                       <Award className="w-4 h-4 text-gray-500" />
-                      Referral Reward (₹)
+                      Referral Reward (â‚¹)
                     </Label>
                     <Input
                       type="number"
@@ -3784,19 +3784,19 @@ const SuperAdminPage = () => {
               <CardContent>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="text-center p-4 bg-white rounded-lg shadow-sm">
-                    <div className="text-2xl font-bold text-gray-900">₹{pricing.regular_price || 1999}</div>
+                    <div className="text-2xl font-bold text-gray-900">â‚¹{pricing.regular_price || 1999}</div>
                     <div className="text-sm text-gray-500">Regular Price</div>
                   </div>
                   <div className="text-center p-4 bg-white rounded-lg shadow-sm">
-                    <div className="text-2xl font-bold text-green-600">₹{pricing.campaign_price || 1799}</div>
+                    <div className="text-2xl font-bold text-green-600">â‚¹{pricing.campaign_price || 1799}</div>
                     <div className="text-sm text-gray-500">Campaign Price</div>
                   </div>
                   <div className="text-center p-4 bg-white rounded-lg shadow-sm">
-                    <div className="text-2xl font-bold text-purple-600">₹{pricing.referral_discount || 200}</div>
+                    <div className="text-2xl font-bold text-purple-600">â‚¹{pricing.referral_discount || 200}</div>
                     <div className="text-sm text-gray-500">Referral Discount</div>
                   </div>
                   <div className="text-center p-4 bg-white rounded-lg shadow-sm">
-                    <div className="text-2xl font-bold text-blue-600">₹{pricing.referral_reward || 300}</div>
+                    <div className="text-2xl font-bold text-blue-600">â‚¹{pricing.referral_reward || 300}</div>
                     <div className="text-sm text-gray-500">Referral Reward</div>
                   </div>
                 </div>
@@ -3897,11 +3897,11 @@ const SuperAdminPage = () => {
                   </CardHeader>
                   <CardContent>
                     <div className="text-3xl font-bold text-gray-900">
-                      ₹{(referralAnalytics.total_rewards_paid || 0).toLocaleString()}
+                      â‚¹{(referralAnalytics.total_rewards_paid || 0).toLocaleString()}
                     </div>
                     <div className="flex items-center gap-2 mt-2">
                       <span className="text-sm text-blue-600">
-                        ₹{(referralAnalytics.total_discounts_given || 0).toLocaleString()} discounts given
+                        â‚¹{(referralAnalytics.total_discounts_given || 0).toLocaleString()} discounts given
                       </span>
                     </div>
                   </CardContent>
@@ -4030,10 +4030,10 @@ const SuperAdminPage = () => {
                           <td className="p-3">
                             <div className="space-y-1">
                               <div className="text-sm font-medium text-green-600">
-                                ₹{referral.referrer_reward || 0}
+                                â‚¹{referral.referrer_reward || 0}
                               </div>
                               <div className="text-xs text-gray-500">
-                                Discount: ₹{referral.referee_discount || 0}
+                                Discount: â‚¹{referral.referee_discount || 0}
                               </div>
                             </div>
                           </td>
@@ -4820,7 +4820,7 @@ const SuperAdminPage = () => {
                                 )}
                                 {campaign.discount_amount > 0 && (
                                   <div className="text-sm font-medium text-green-600">
-                                    ₹{campaign.discount_amount} off
+                                    â‚¹{campaign.discount_amount} off
                                   </div>
                                 )}
                                 {!campaign.discount_percentage && !campaign.discount_amount && (
@@ -4957,7 +4957,7 @@ const SuperAdminPage = () => {
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label>Sale Price (₹)</Label>
+                        <Label>Sale Price (â‚¹)</Label>
                         <Input
                           type="number"
                           value={saleOffer.sale_price || ''}
@@ -4985,16 +4985,16 @@ const SuperAdminPage = () => {
                           onChange={(e) => setSaleOffer({ ...saleOffer, theme: e.target.value })}
                           className="w-full px-3 py-2 border rounded-lg bg-white focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                         >
-                          <option value="default">🎁 Default - Purple/Violet gradient with sparkles</option>
-                          <option value="early_adopter">🚀 Early Adopter - Emerald/Teal/Cyan gradient with rocket</option>
-                          <option value="diwali">🪔 Diwali - Orange/Red/Pink festive gradient</option>
-                          <option value="christmas">🎄 Christmas - Red/Green holiday gradient</option>
-                          <option value="newyear">🎉 New Year - Indigo/Purple/Pink celebration</option>
-                          <option value="flash">⚡ Flash Sale - Red/Orange/Yellow urgent gradient</option>
-                          <option value="blackfriday">🔥 Black Friday - Dark/Black premium gradient</option>
-                          <option value="summer">☀️ Summer - Cyan/Yellow/Orange bright gradient</option>
-                          <option value="republic">🇮🇳 Republic Day - Orange/White/Green tricolor</option>
-                          <option value="holi">🎨 Holi - Pink/Purple/Blue colorful gradient</option>
+                          <option value="default">ðŸŽ Default - Purple/Violet gradient with sparkles</option>
+                          <option value="early_adopter">ðŸš€ Early Adopter - Emerald/Teal/Cyan gradient with rocket</option>
+                          <option value="diwali">ðŸª” Diwali - Orange/Red/Pink festive gradient</option>
+                          <option value="christmas">ðŸŽ„ Christmas - Red/Green holiday gradient</option>
+                          <option value="newyear">ðŸŽ‰ New Year - Indigo/Purple/Pink celebration</option>
+                          <option value="flash">âš¡ Flash Sale - Red/Orange/Yellow urgent gradient</option>
+                          <option value="blackfriday">ðŸ”¥ Black Friday - Dark/Black premium gradient</option>
+                          <option value="summer">â˜€ï¸ Summer - Cyan/Yellow/Orange bright gradient</option>
+                          <option value="republic">ðŸ‡®ðŸ‡³ Republic Day - Orange/White/Green tricolor</option>
+                          <option value="holi">ðŸŽ¨ Holi - Pink/Purple/Blue colorful gradient</option>
                         </select>
                         
                         {/* Theme Preview */}
@@ -5016,14 +5016,14 @@ const SuperAdminPage = () => {
                             <span className="flex items-center justify-center gap-2">
                               {saleOffer.theme === 'early_adopter' && <Rocket className="w-4 h-4" />}
                               {saleOffer.theme === 'default' && <Sparkles className="w-4 h-4" />}
-                              {saleOffer.theme === 'diwali' && <span>🪔</span>}
+                              {saleOffer.theme === 'diwali' && <span>ðŸª”</span>}
                               {saleOffer.theme === 'christmas' && <Gift className="w-4 h-4" />}
-                              {saleOffer.theme === 'newyear' && <span>🎉</span>}
+                              {saleOffer.theme === 'newyear' && <span>ðŸŽ‰</span>}
                               {saleOffer.theme === 'flash' && <Zap className="w-4 h-4" />}
                               {saleOffer.theme === 'blackfriday' && <Flame className="w-4 h-4" />}
                               {saleOffer.theme === 'summer' && <Star className="w-4 h-4" />}
-                              {saleOffer.theme === 'republic' && <span>🇮🇳</span>}
-                              {saleOffer.theme === 'holi' && <span>🎨</span>}
+                              {saleOffer.theme === 'republic' && <span>ðŸ‡®ðŸ‡³</span>}
+                              {saleOffer.theme === 'holi' && <span>ðŸŽ¨</span>}
                               {saleOffer.title || 'Sale Banner Preview'}
                             </span>
                           </div>
@@ -5146,7 +5146,7 @@ const SuperAdminPage = () => {
                     <div className="space-y-2">
                       <Label className="flex items-center gap-2">
                         <DollarSign className="w-4 h-4 text-gray-500" />
-                        Fixed Amount (₹)
+                        Fixed Amount (â‚¹)
                       </Label>
                       <Input
                         type="number"
@@ -5482,7 +5482,7 @@ const SuperAdminPage = () => {
                         </div>
                         <div className="text-center p-3 bg-purple-50 rounded-lg">
                           <div className="text-2xl font-bold text-purple-600">
-                            ₹{(businessDetails.total_revenue || 0).toLocaleString('en-IN')}
+                            â‚¹{(businessDetails.total_revenue || 0).toLocaleString('en-IN')}
                           </div>
                           <div className="text-sm text-gray-500">Revenue</div>
                         </div>
@@ -5523,7 +5523,7 @@ const SuperAdminPage = () => {
                           </div>
                           <div>
                             <Label className="text-sm text-gray-500">Wallet Balance</Label>
-                            <p className="font-medium text-green-600">₹{(businessDetails.wallet_balance || 0).toLocaleString('en-IN')}</p>
+                            <p className="font-medium text-green-600">â‚¹{(businessDetails.wallet_balance || 0).toLocaleString('en-IN')}</p>
                           </div>
                           <div>
                             <Label className="text-sm text-gray-500">Total Referrals</Label>
@@ -5531,7 +5531,7 @@ const SuperAdminPage = () => {
                           </div>
                           <div>
                             <Label className="text-sm text-gray-500">Referral Earnings</Label>
-                            <p className="font-medium text-green-600">₹{(businessDetails.total_referral_earnings || 0).toLocaleString('en-IN')}</p>
+                            <p className="font-medium text-green-600">â‚¹{(businessDetails.total_referral_earnings || 0).toLocaleString('en-IN')}</p>
                           </div>
                         </div>
                       </div>
@@ -5712,7 +5712,7 @@ const SuperAdminPage = () => {
                           toast.success('Blog post updated');
                         } else {
                           setBlogPosts(prev => [newPost, ...prev]);
-                          toast.success('Blog post created — copy the JS object below to add it to blogPosts.js');
+                          toast.success('Blog post created â€” copy the JS object below to add it to blogPosts.js');
                         }
                         setShowBlogForm(false);
                       }}
@@ -5739,7 +5739,7 @@ const SuperAdminPage = () => {
                       onClick={() => {
                         const code = blogPosts.map(p => JSON.stringify(p, null, 2)).join(',\n');
                         navigator.clipboard.writeText(code);
-                        toast.success('Copied to clipboard — paste into blogPosts.js');
+                        toast.success('Copied to clipboard â€” paste into blogPosts.js');
                       }}
                       className="flex items-center gap-1 text-xs"
                     >
@@ -5771,14 +5771,14 @@ const SuperAdminPage = () => {
                             </span>
                             {post.featured && <span className="text-[10px] px-2 py-0.5 rounded-full bg-orange-100 text-orange-700 font-semibold">Featured</span>}
                           </div>
-                          <div className="text-xs text-gray-500 mt-1">{post.category} • {post.targetMarket?.join(', ')} • {post.readTime}</div>
+                          <div className="text-xs text-gray-500 mt-1">{post.category} â€¢ {post.targetMarket?.join(', ')} â€¢ {post.readTime}</div>
                           <div className="text-xs text-purple-600 font-mono mt-0.5">/blog/{post.slug}</div>
                         </div>
                         <div className="flex gap-2 flex-shrink-0">
                           <button
                             onClick={() => {
                               navigator.clipboard.writeText(JSON.stringify(post, null, 2));
-                              toast.success('Post JSON copied — paste into blogPosts.js');
+                              toast.success('Post JSON copied â€” paste into blogPosts.js');
                             }}
                             className="p-1.5 text-gray-400 hover:text-purple-600 rounded"
                             title="Copy JSON"
@@ -5829,7 +5829,7 @@ const SuperAdminPage = () => {
                       <li>Click the <strong>Copy</strong> icon to copy the post JSON</li>
                       <li>Open <code className="bg-blue-100 px-1 rounded">frontend/src/data/blogPosts.js</code></li>
                       <li>Paste the JSON object inside the <code className="bg-blue-100 px-1 rounded">blogPosts</code> array</li>
-                      <li>Deploy — the post will appear on the live blog immediately</li>
+                      <li>Deploy â€” the post will appear on the live blog immediately</li>
                     </ol>
                   </div>
                 </div>
@@ -5843,3 +5843,4 @@ const SuperAdminPage = () => {
 };
 
 export default SuperAdminPage;
+

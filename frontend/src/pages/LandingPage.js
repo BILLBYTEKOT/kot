@@ -1748,7 +1748,7 @@ const LandingPage = () => {
                     <div className="text-sm text-gray-600">Windows & Android Apps</div>
                   </div>
                 </a>
-                <a href="https://wa.me/918310832669" target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:shadow-md transition-shadow">
+                <a href="https://wa.me/919353685739" target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:shadow-md transition-shadow">
                   <MessageCircle className="w-6 h-6 text-green-600 flex-shrink-0" />
                   <div>
                     <div className="font-semibold text-gray-900">WhatsApp Support</div>
@@ -2718,7 +2718,7 @@ const LandingPage = () => {
             <p className="text-gray-600 mb-6">Our team is here to help you 24/7</p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <a
-                href="https://wa.me/918310832669"
+                href="https://wa.me/919353685739"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-green-500 text-white rounded-xl font-semibold hover:bg-green-600 transition-colors"
@@ -3246,8 +3246,8 @@ const LandingPage = () => {
                 </div>
                 <div className="flex items-center gap-2 text-sm text-gray-400">
                   <MessageCircle className="w-4 h-4 text-green-500" />
-                  <a href="https://wa.me/918310832669?text=Hi, I'm interested in BillByteKOT" target="_blank" rel="noopener noreferrer" className="hover:text-green-400">
-                    +91 83108 32669 (WhatsApp)
+                  <a href="https://wa.me/919353685739?text=Hi, I'm interested in BillByteKOT" target="_blank" rel="noopener noreferrer" className="hover:text-green-400">
+                    +91 93536 85739 (WhatsApp)
                   </a>
                 </div>
               </div>
@@ -3341,7 +3341,7 @@ const LandingPage = () => {
 
       {/* Floating WhatsApp Button */}
       <a
-        href="https://wa.me/918310832669?text=Hi, I'm interested in BillByteKOT"
+        href="https://wa.me/919353685739?text=Hi, I'm interested in BillByteKOT"
         target="_blank"
         rel="noopener noreferrer"
         className="fixed bottom-6 right-6 z-50 bg-green-500 hover:bg-green-600 text-white p-4 rounded-full shadow-lg hover:shadow-xl transition-all hover:scale-110 flex items-center gap-2 group"

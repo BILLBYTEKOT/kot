@@ -1,9 +1,9 @@
-import React from 'react';
+﻿import React from 'react';
 import { Helmet } from 'react-helmet';
 
 // Default values
 const defaultLogo = 'https://billbytekot.in/logo.png';
-const defaultPhone = '+91-8310832669';
+const defaultPhone = '+91-9353685739';
 const defaultEmail = 'support@billbytekot.in';
 const defaultAddress = {
   street: 'Your Street Address',
@@ -258,7 +258,7 @@ export const LocalBusinessSchema = () => {
     "name": "BillByteKOT",
     "image": defaultLogo,
     "description": "Best restaurant billing software in India with FREE KOT system, thermal printing, GST billing & WhatsApp integration.",
-    "priceRange": "₹₹",
+    "priceRange": "â‚¹â‚¹",
     "servesCuisine": ["Indian", "Multi-cuisine"],
     "menu": "https://billbytekot.in/menu",
     "acceptsReservations": "True",
@@ -312,3 +312,4 @@ export const LocalBusinessSchema = () => {
     </Helmet>
   );
 };
+

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { CheckCircle, Loader2 } from 'lucide-react';
 
 const RESTAURANT_TYPES = [
@@ -7,7 +7,7 @@ const RESTAURANT_TYPES = [
   'Canteen', 'Sweet Shop', 'Other',
 ];
 
-// LeadCaptureForm — renders at the bottom of every blog post
+// LeadCaptureForm â€” renders at the bottom of every blog post
 // POSTs to the existing backend contact/lead endpoint
 const LeadCaptureForm = ({ title = 'Get a Free Demo & Consultation' }) => {
   const [form, setForm] = useState({
@@ -98,7 +98,7 @@ const LeadCaptureForm = ({ title = 'Get a Free Demo & Consultation' }) => {
           </select>
         </div>
         {status === 'error' && (
-          <p className="text-red-500 text-xs">Something went wrong. Please try again or WhatsApp us at +91-8310832669.</p>
+          <p className="text-red-500 text-xs">Something went wrong. Please try again or WhatsApp us at +91-9353685739.</p>
         )}
         <button
           type="submit"
@@ -108,7 +108,7 @@ const LeadCaptureForm = ({ title = 'Get a Free Demo & Consultation' }) => {
           {status === 'loading' ? (
             <><Loader2 className="w-4 h-4 animate-spin" /> Submitting...</>
           ) : (
-            '📅 Book Free Demo'
+            'ðŸ“… Book Free Demo'
           )}
         </button>
       </form>
@@ -117,3 +117,4 @@ const LeadCaptureForm = ({ title = 'Get a Free Demo & Consultation' }) => {
 };
 
 export default LeadCaptureForm;
+
