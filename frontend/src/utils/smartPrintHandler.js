@@ -255,3 +255,81 @@ export const getPrinterStatusText = () => {
 const generateReceiptHTML = (order, settings) => `<html><body>${JSON.stringify(order)}</body></html>`;
 const generatePlainTextReceipt = (order, settings) => JSON.stringify(order);
 const buildReceiptEscPos = (order, settings) => new Uint8Array();
+
+// ========== Additional exports for tests ==========
+
+/**
+ * Determine best print method available
+ */
+export const determineBestMethod = () => {
+  const platform = detectPlatform();
+  
+  if (platform === 'electron') return 'electron';
+  if (platform === 'android-twa' || platform === 'android') return 'android';
+  if (platform === 'bluetooth') return 'bluetooth';
+  return 'browser';
+};
+
+/**
+ * Execute print function with timeout protection
+ */
+export const executePrintWithTimeout = async (printFn, timeout = 30000) => {
+  try {
+    const result = await Promise.race([
+      printFn(),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error(`Print timeout after ${timeout}ms`)), timeout)
+      )
+    ]);
+    return { success: true, result };
+  } catch (error) {
+    if (error.message.includes('timeout')) {
+      return { success: false, message: 'Print timeout - printer may be offline', error };
+    }
+    return { success: false, message: error.message, error };
+  }
+};
+
+/**
+ * Handle print errors with structured response
+ */
+export const handlePrintError = (error, orderId) => {
+  const errorMsg = getPrintErrorMessage(error, `order-${orderId}`);
+  const isRetryable = isRetryableError(error);
+  
+  console.error(`[v0] Print error for order ${orderId}:`, error.message);
+  
+  return {
+    success: false,
+    orderId,
+    message: errorMsg,
+    error: error.message,
+    retryable: isRetryable,
+    timestamp: new Date().toISOString(),
+    recovery: isRetryable ? ['Reconnect printer', 'Retry print'] : ['Check settings', 'Contact support']
+  };
+};
+
+/**
+ * Get structured print result
+ */
+export const getPrintResult = (success, orderId, error) => {
+  if (success) {
+    return {
+      success: true,
+      orderId,
+      message: 'Print sent successfully',
+      timestamp: new Date().toISOString()
+    };
+  }
+  
+  const isRetryable = error ? isRetryableError(error) : false;
+  return {
+    success: false,
+    orderId,
+    message: getPrintErrorMessage(error, `order-${orderId}`),
+    error: error?.message || 'Unknown error',
+    retryable: isRetryable,
+    timestamp: new Date().toISOString()
+  };
+};

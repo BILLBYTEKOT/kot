@@ -227,3 +227,104 @@ export const chainPrintMethods = (methods = []) => {
     });
   };
 };
+
+// ========== Aliases for test compatibility ==========
+
+/**
+ * Alias: validateOrder - for test compatibility
+ */
+export const validateOrder = (order) => {
+  const result = validateOrderData(order);
+  return {
+    ...result,
+    order: result.valid ? order : null
+  };
+};
+
+/**
+ * Alias: validatePrintSettings - for test compatibility
+ */
+export const validatePrintSettings = (settings) => {
+  return validateBusinessSettings(settings);
+};
+
+/**
+ * Validate ESC/POS bytes
+ */
+export const validateEscposBytes = (bytes) => {
+  if (!bytes) {
+    return { valid: false, error: 'No bytes provided' };
+  }
+
+  if (Array.isArray(bytes) && bytes.length === 0) {
+    return { valid: false, error: 'Byte array is empty' };
+  }
+
+  if (bytes instanceof Uint8Array && bytes.length === 0) {
+    return { valid: false, error: 'Byte array is empty' };
+  }
+
+  // Check for valid byte values (0-255)
+  const bytesArray = Array.isArray(bytes) ? bytes : Array.from(bytes);
+  for (let i = 0; i < bytesArray.length; i++) {
+    const byte = bytesArray[i];
+    if (typeof byte !== 'number' || byte < 0 || byte > 255) {
+      return { valid: false, error: `Invalid byte value at index ${i}: ${byte}` };
+    }
+  }
+
+  return { valid: true };
+};
+
+/**
+ * Determine platform for printing
+ */
+export const determinePlatform = () => {
+  // Check for Electron
+  if (typeof window !== 'undefined' && window.electronAPI) {
+    return 'electron';
+  }
+
+  // Check for Android
+  if (typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent)) {
+    return 'android';
+  }
+
+  // Default to web/browser
+  return 'web';
+};
+
+/**
+ * Alias: isRetryable - for test compatibility
+ */
+export const isRetryable = (error) => {
+  return isRetryableError(error);
+};
+
+/**
+ * Categorize error type for handling
+ */
+export const categorizeError = (error) => {
+  const errorStr = (error?.message || String(error)).toLowerCase();
+
+  if (errorStr.includes('timeout')) {
+    return 'TIMEOUT';
+  }
+  if (errorStr.includes('disconn') || errorStr.includes('notfound')) {
+    return 'DISCONNECTION';
+  }
+  if (errorStr.includes('invalid') || errorStr.includes('validation')) {
+    return 'VALIDATION';
+  }
+  if (errorStr.includes('encod')) {
+    return 'ENCODING';
+  }
+  if (errorStr.includes('permission') || errorStr.includes('denied')) {
+    return 'PERMISSION';
+  }
+  if (errorStr.includes('memory') || errorStr.includes('resource')) {
+    return 'RESOURCE';
+  }
+
+  return 'UNKNOWN';
+};
