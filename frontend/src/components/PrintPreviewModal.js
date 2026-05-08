@@ -60,31 +60,52 @@ const PrintPreviewModal = ({
   };
 
   const handlePrint = async () => {
+    if (!editableOrder && !order) {
+      toast.error('No order data to print');
+      return;
+    }
+
     setIsPrinting(true);
     setPrintSuccess(false);
     
     try {
+      const orderToPrint = editableOrder || order;
+      console.log('[v0] PrintPreviewModal: Starting print for order', orderToPrint.id);
+      
       // Play print sound
       try {
         const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBSuBzvLZiTYIG2m98OScTgwOUarm7blmGgU7k9n1unEiBC13yO/eizEIHWq+8+OWT');
         audio.volume = 0.3;
         audio.play().catch(() => {});
-      } catch (e) {}
+      } catch (e) {
+        console.debug('[v0] Print sound failed (non-critical)');
+      }
       
       // Vibration feedback
       if (navigator.vibrate) {
-        navigator.vibrate([100, 50, 100]);
+        try {
+          navigator.vibrate([100, 50, 100]);
+        } catch (e) {
+          console.debug('[v0] Vibration not available');
+        }
       }
       
-      // Trigger print
-      if (onPrint) {
-        await onPrint(editableOrder || order);
-      } else {
-        await manualPrintReceipt(editableOrder || order, businessSettings);
-      }
+      // Trigger print with timeout
+      const printPromise = onPrint 
+        ? onPrint(orderToPrint)
+        : manualPrintReceipt(orderToPrint, businessSettings);
+      
+      const result = await Promise.race([
+        printPromise,
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Print timeout after 30s')), 30000)
+        )
+      ]);
+      
+      console.log('[v0] PrintPreviewModal: Print result', result);
       
       setPrintSuccess(true);
-      toast.success('Print dialog opened!', {
+      toast.success('Print sent to printer!', {
         icon: <Printer className="w-4 h-4" />,
         duration: 2000
       });
@@ -95,8 +116,11 @@ const PrintPreviewModal = ({
       }, 1500);
       
     } catch (error) {
-      console.error('Print error:', error);
-      toast.error('Print failed: ' + error.message);
+      console.error('[v0] PrintPreviewModal error:', error.message);
+      const errorMsg = error.message?.includes('timeout') 
+        ? 'Print operation timed out - printer may be offline'
+        : `Print failed: ${error.message}`;
+      toast.error(errorMsg, { duration: 4000 });
     } finally {
       setIsPrinting(false);
     }

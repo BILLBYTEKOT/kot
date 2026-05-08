@@ -13,7 +13,7 @@
  *
  * For non-Android platforms we fall through to the caller's existing flow.
  */
-import { toast } from 'soner';
+import { toast } from 'sonner';
 
 const ESC = 0x1B;
 const GS  = 0x1D;
