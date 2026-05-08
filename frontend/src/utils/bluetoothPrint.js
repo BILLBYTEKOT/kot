@@ -176,14 +176,39 @@ export async function connectPrinter() {
 }
 
 /**
- * Disconnect from printer
+ * Disconnect from printer with proper cleanup
  */
 export function disconnectPrinter() {
-  if (connectedDevice && connectedDevice.gatt.connected) {
-    connectedDevice.gatt.disconnect();
+  try {
+    console.log('[v0] Bluetooth: Disconnecting printer...');
+    
+    // Remove event listener
+    if (connectedDevice) {
+      try {
+        connectedDevice.removeEventListener('gattserverdisconnected', () => {});
+      } catch (e) {
+        console.debug('[v0] Could not remove disconnect listener');
+      }
+    }
+
+    // Disconnect GATT
+    if (connectedDevice && connectedDevice.gatt.connected) {
+      try {
+        connectedDevice.gatt.disconnect();
+        console.log('[v0] Bluetooth: GATT disconnected');
+      } catch (e) {
+        console.warn('[v0] Error disconnecting GATT:', e.message);
+      }
+    }
+
+    // Clear references to allow garbage collection
+    connectedDevice = null;
+    printerCharacteristic = null;
+    
+    console.log('[v0] Bluetooth: Cleanup complete');
+  } catch (err) {
+    console.error('[v0] Bluetooth: Disconnect error:', err);
   }
-  connectedDevice = null;
-  printerCharacteristic = null;
 }
 
 /**
@@ -194,31 +219,66 @@ export function isPrinterConnected() {
 }
 
 /**
- * Send raw data to printer
+ * Send raw data to printer with retry logic
  */
-async function sendToPrinter(data) {
+async function sendToPrinter(data, retryCount = 0, maxRetries = 2) {
   if (!isPrinterConnected()) {
-    throw new Error('Printer not connected');
+    console.error('[v0] Bluetooth: Printer not connected');
+    throw new Error('Printer not connected - please reconnect');
   }
 
   const uint8Array = new Uint8Array(data);
   
-  // Send in chunks (BLE has MTU limit, usually 20 bytes)
-  const chunkSize = 20;
-  for (let i = 0; i < uint8Array.length; i += chunkSize) {
-    const chunk = uint8Array.slice(i, i + chunkSize);
-    try {
-      if (printerCharacteristic.properties.writeWithoutResponse) {
-        await printerCharacteristic.writeValueWithoutResponse(chunk);
-      } else {
-        await printerCharacteristic.writeValue(chunk);
+  if (uint8Array.length === 0) {
+    console.warn('[v0] Bluetooth: Empty data to send');
+    return;
+  }
+
+  try {
+    // Send in chunks (BLE has MTU limit, usually 20 bytes)
+    const chunkSize = 20;
+    for (let i = 0; i < uint8Array.length; i += chunkSize) {
+      const chunk = uint8Array.slice(i, i + chunkSize);
+      
+      try {
+        if (printerCharacteristic.properties.writeWithoutResponse) {
+          await printerCharacteristic.writeValueWithoutResponse(chunk);
+        } else {
+          await printerCharacteristic.writeValue(chunk);
+        }
+        console.log(`[v0] Bluetooth: Sent chunk ${i / chunkSize + 1}/${Math.ceil(uint8Array.length / chunkSize)}`);
+      } catch (chunkErr) {
+        console.error(`[v0] Bluetooth: Chunk write failed:`, chunkErr.message);
+        
+        // If characteristic is invalidated, try to reconnect
+        if (chunkErr.name === 'NotFoundError' || !isPrinterConnected()) {
+          throw new Error('Printer disconnected during print');
+        }
+        throw chunkErr;
       }
-    } catch (e) {
-      console.error('Write error:', e);
-      throw e;
+      
+      // Delay between chunks to prevent buffer overflow
+      await new Promise(resolve => setTimeout(resolve, 30));
     }
-    // Small delay between chunks
-    await new Promise(resolve => setTimeout(resolve, 20));
+    console.log('[v0] Bluetooth: All data sent successfully');
+  } catch (err) {
+    console.error('[v0] Bluetooth: Send error:', err.message);
+    
+    // Retry logic
+    if (retryCount < maxRetries) {
+      console.log(`[v0] Bluetooth: Retry attempt ${retryCount + 1}/${maxRetries}`);
+      // Wait before retry with exponential backoff
+      await new Promise(resolve => setTimeout(resolve, 500 * (retryCount + 1)));
+      
+      // Check if still connected
+      if (isPrinterConnected()) {
+        return sendToPrinter(data, retryCount + 1, maxRetries);
+      } else {
+        throw new Error('Printer disconnected - cannot retry');
+      }
+    }
+    
+    throw err;
   }
 }
 
@@ -285,26 +345,42 @@ export async function printLine(char = '-', length = 32) {
 }
 
 /**
- * Print receipt
+ * Print receipt with comprehensive error handling
  */
 export async function printReceipt(order, businessSettings = {}) {
+  if (!order) {
+    console.error('[v0] Bluetooth: No order data provided');
+    throw new Error('No order data to print');
+  }
+
   if (!isPrinterConnected()) {
+    console.log('[v0] Bluetooth: Attempting to reconnect...');
     // Try to reconnect
     const saved = getSavedPrinter();
     if (saved) {
       try {
         await connectPrinter();
-      } catch (e) {
-        throw new Error('Printer not connected. Please connect printer first.');
+        console.log('[v0] Bluetooth: Reconnected successfully');
+      } catch (reconnectErr) {
+        console.error('[v0] Bluetooth: Reconnection failed:', reconnectErr.message);
+        throw new Error('Printer not connected. Please connect printer in Settings.');
       }
     } else {
+      console.error('[v0] Bluetooth: No saved printer configured');
       throw new Error('No printer configured. Please connect a printer in Settings.');
     }
   }
 
   try {
-    // Initialize printer
-    await sendToPrinter(COMMANDS.INIT);
+    console.log('[v0] Bluetooth: Starting receipt print...');
+    
+    // Initialize printer with timeout
+    await Promise.race([
+      sendToPrinter(COMMANDS.INIT),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Printer init timeout')), 5000)
+      )
+    ]);
     await new Promise(r => setTimeout(r, 100));
 
     // Business name (large, centered, bold)
@@ -397,11 +473,23 @@ export async function printReceipt(order, businessSettings = {}) {
     }
 
     // Feed and cut
-    await sendToPrinter([...COMMANDS.FEED_LINES(4), ...COMMANDS.CUT_PARTIAL]);
+    try {
+      await sendToPrinter([...COMMANDS.FEED_LINES(4), ...COMMANDS.CUT_PARTIAL]);
+    } catch (cutErr) {
+      console.warn('[v0] Bluetooth: Cut operation failed (non-critical):', cutErr.message);
+      // Don't fail the entire print if cut fails
+    }
 
+    console.log('[v0] Bluetooth: Receipt printed successfully');
     return { success: true };
   } catch (error) {
-    console.error('Print error:', error);
+    console.error('[v0] Bluetooth: Print error:', error.message);
+    
+    // Provide helpful error messages
+    if (error.message.includes('NotFoundError') || error.message.includes('disconnected')) {
+      throw new Error('Printer disconnected during print - try reconnecting');
+    }
+    
     throw error;
   }
 }
