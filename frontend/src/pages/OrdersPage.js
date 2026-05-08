@@ -1526,13 +1526,35 @@ const OrdersPage = ({ user }) => {
     }
   };
 
-  const handlePrintKOT = (order) => {
+  const handlePrintKOT = async (order) => {
+    if (!order || !order.id) {
+      toast.error('Invalid order - cannot print KOT');
+      return;
+    }
+
+    setPrintLoading(true);
     try {
-      manualPrintKOT(order, businessSettings);
-      toast.success('KOT sent to printer');
+      console.log('[v0] handlePrintKOT: Starting for order', order.id);
+      
+      const result = await manualPrintKOT(order, businessSettings);
+      
+      if (result?.success) {
+        toast.success('KOT sent to printer', { duration: 2000 });
+      } else {
+        const errorMsg = result?.message || 'Failed to print KOT';
+        toast.error(errorMsg, { duration: 3000 });
+        
+        // If retryable, show retry button
+        if (result?.retryable) {
+          console.log('[v0] KOT print is retryable');
+        }
+      }
     } catch (error) {
-      console.error('Print KOT failed:', error);
-      toast.error('Failed to print KOT');
+      console.error('[v0] handlePrintKOT error:', error);
+      toast.error(error.message || 'KOT print failed - please try again');
+    } finally {
+      setPrintLoading(false);
+      setActionMenuOpen(null);
     }
   };
 
@@ -1585,9 +1607,9 @@ const OrdersPage = ({ user }) => {
 
   const getStatusColor = (status) => {
     const colors = {
-      pending: 'bg-yellow-100 text-yellow-700',
-      preparing: 'bg-blue-100 text-blue-700',
-      ready: 'bg-green-100 text-green-700',
+      pending: 'bg-yellow-100 text-yellow-700 animate-pulse',
+      preparing: 'bg-blue-100 text-blue-700 animate-pulse',
+      ready: 'bg-green-100 text-green-700 animate-bounce',
       completed: 'bg-gray-100 text-gray-700',
       cancelled: 'bg-red-100 text-red-700',
       credit: 'bg-orange-100 text-orange-700',
@@ -1596,18 +1618,53 @@ const OrdersPage = ({ user }) => {
     return colors[status] || 'bg-gray-100 text-gray-700';
   };
 
-  const handlePrintReceipt = (order) => {
+  const getStatusIcon = (status) => {
+    const icons = {
+      pending: '⏳',
+      preparing: '👨‍🍳',
+      ready: '🎉',
+      completed: '✅',
+      cancelled: '❌',
+      credit: '⚠️',
+      due: '⚠️'
+    };
+    return icons[status] || '•';
+  };
+
+  const handlePrintReceipt = async (order) => {
+    if (!order || !order.id) {
+      toast.error('Invalid order - cannot print receipt');
+      return;
+    }
+
     setPrintLoading(true);
     try {
-      manualPrintReceipt(order, businessSettings);
-      toast.success('Receipt sent to printer');
+      console.log('[v0] handlePrintReceipt: Starting for order', order.id);
+      
+      const result = await manualPrintReceipt(order, businessSettings);
+      
+      if (result?.success) {
+        toast.success('Receipt sent to printer', { 
+          duration: 2000,
+          icon: '✓'
+        });
+      } else {
+        const errorMsg = result?.message || 'Failed to print receipt';
+        toast.error(errorMsg, { duration: 3000 });
+        
+        // Log retry info if available
+        if (result?.retryable) {
+          console.log('[v0] Receipt print is retryable');
+        }
+      }
     } catch (error) {
-      console.error('Print receipt failed:', error);
-      toast.error('Failed to print receipt');
+      console.error('[v0] handlePrintReceipt error:', error);
+      const errorMsg = error.message || 'Receipt print failed - please try again';
+      toast.error(errorMsg, { duration: 3000 });
     } finally {
       setPrintLoading(false);
+      setActionMenuOpen(null);
     }
-    setActionMenuOpen(null);
   };
 
   const handleEditOrder = (order) => {
@@ -2884,8 +2941,25 @@ const OrdersPage = ({ user }) => {
                       </button>
                     )}
                     {['admin', 'waiter', 'cashier'].includes(user?.role) && order.status !== 'completed' && (
-                      <button onClick={() => handlePrintKOT(order)} className="h-10 px-4 border border-gray-200 hover:bg-gray-50 rounded-xl font-medium text-sm flex items-center justify-center gap-1.5 text-gray-600">
-                        <Printer className="w-4 h-4" /> KOT
+                      <button 
+                        onClick={() => handlePrintKOT(order)} 
+                        disabled={printLoading}
+                        className={`h-10 px-4 border border-gray-200 rounded-xl font-medium text-sm flex items-center justify-center gap-1.5 transition-all ${
+                          printLoading 
+                            ? 'bg-gray-100 text-gray-400 cursor-not-allowed opacity-60' 
+                            : 'hover:bg-blue-50 text-gray-600 hover:text-blue-600 hover:border-blue-200'
+                        }`}
+                      >
+                        {printLoading ? (
+                          <>
+                            <div className="animate-spin w-4 h-4 border-2 border-gray-300 border-t-blue-600 rounded-full" />
+                            <span className="text-xs">Printing...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Printer className="w-4 h-4" /> KOT
+                          </>
+                        )}
                       </button>
                     )}
                     <OptimizedBillingButton order={order} user={user} />

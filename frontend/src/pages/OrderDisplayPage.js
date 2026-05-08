@@ -10,9 +10,10 @@ import {
   Search, Filter, Calendar, Clock, User, Phone, 
   MapPin, DollarSign, ChefHat, Printer, Eye,
   CheckCircle, XCircle, AlertCircle, Package,
-  TrendingUp, ArrowLeft, RefreshCw
+  TrendingUp, ArrowLeft, RefreshCw, Loader
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { manualPrintReceipt } from '../utils/printUtils';
 
 const OrderDisplayPage = () => {
   const navigate = useNavigate();
@@ -21,9 +22,18 @@ const OrderDisplayPage = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [dateFilter, setDateFilter] = useState('today');
+  const [printingOrderId, setPrintingOrderId] = useState(null);
+  const [businessSettings, setBusinessSettings] = useState({});
 
   useEffect(() => {
     fetchOrders();
+    // Load business settings
+    try {
+      const user = JSON.parse(localStorage.getItem('user') || '{}');
+      setBusinessSettings(user.business_settings || {});
+    } catch (e) {
+      console.debug('[v0] Could not load business settings');
+    }
   }, []);
 
   const fetchOrders = async () => {
@@ -59,6 +69,30 @@ const OrderDisplayPage = () => {
       cancelled: <XCircle className="w-4 h-4" />
     };
     return icons[status] || icons.pending;
+  };
+
+  const handlePrintReceipt = async (order) => {
+    if (!order || !order.id) {
+      toast.error('Invalid order - cannot print');
+      return;
+    }
+
+    setPrintingOrderId(order.id);
+    try {
+      console.log('[v0] OrderDisplayPage: Printing receipt for order', order.id);
+      const result = await manualPrintReceipt(order, businessSettings);
+      
+      if (result?.success) {
+        toast.success('Receipt sent to printer', { duration: 2000 });
+      } else {
+        toast.error(result?.message || 'Print failed', { duration: 3000 });
+      }
+    } catch (error) {
+      console.error('[v0] Print error:', error);
+      toast.error('Print failed - ' + (error.message || 'please try again'));
+    } finally {
+      setPrintingOrderId(null);
+    }
   };
 
   const filteredOrders = orders.filter(order => {
@@ -361,11 +395,15 @@ const OrderDisplayPage = () => {
                     <Button 
                       variant="outline" 
                       size="sm"
-                      onClick={() => {
-                        toast.success('Print functionality coming soon!');
-                      }}
+                      disabled={printingOrderId === order.id}
+                      onClick={() => handlePrintReceipt(order)}
+                      className={printingOrderId === order.id ? 'opacity-60' : ''}
                     >
-                      <Printer className="w-4 h-4" />
+                      {printingOrderId === order.id ? (
+                        <Loader className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Printer className="w-4 h-4" />
+                      )}
                     </Button>
                   </div>
                 </CardContent>

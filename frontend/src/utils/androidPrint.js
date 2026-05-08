@@ -18,6 +18,10 @@ import { toast } from 'sonner';
 const ESC = 0x1B;
 const GS  = 0x1D;
 
+// Configuration
+const PRINT_TIMEOUT = 5000; // 5s timeout for print operations
+const MAX_RETRY_ATTEMPTS = 2;
+
 export const isAndroid = () =>
   typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent);
 
@@ -30,18 +34,53 @@ export const isAndroidTWA = () => {
   return false;
 };
 
+// Validate printer is available before attempting print
+export const validatePrinterAvailable = () => {
+  if (!isAndroid()) {
+    console.warn('[v0] Not on Android platform');
+    return false;
+  }
+  return true;
+};
+
 // -------- ESC/POS builder (shared) --------
+
+/**
+ * Build byte array from mixed input - strings, arrays, and numbers
+ * Handles proper encoding including special characters like ₹
+ */
 const bytes = (...arr) => {
   const out = [];
   for (const a of arr) {
-    if (Array.isArray(a)) out.push(...a);
-    else if (typeof a === 'string') out.push(...new TextEncoder().encode(a));
-    else out.push(a);
+    if (Array.isArray(a)) {
+      out.push(...a);
+    } else if (typeof a === 'string') {
+      try {
+        // Use TextEncoder for proper UTF-8 encoding of special chars like ₹
+        const encoded = new TextEncoder().encode(a);
+        out.push(...encoded);
+      } catch (err) {
+        console.error('[v0] Text encoding failed:', err, 'input:', a);
+        // Fallback: try Latin1 encoding
+        for (let i = 0; i < a.length; i++) {
+          out.push(a.charCodeAt(i) & 0xFF);
+        }
+      }
+    } else if (typeof a === 'number') {
+      out.push(a & 0xFF);
+    }
   }
   return out;
 };
 
-const repeatCh = (ch, n) => ch.repeat(n);
+/**
+ * Repeat character n times - used for separators
+ */
+const repeatCh = (ch, n) => {
+  if (n < 0) n = 0;
+  if (n > 1000) n = 1000; // Safety limit
+  return ch.repeat(n);
+};
 
 /**
  * Convert order + settings into ESC/POS byte array (Uint8Array)
@@ -221,26 +260,100 @@ const uint8ToBase64 = (u8) => {
  *
  * Users must install RawBT once from Play Store and pair their printer there.
  */
-export const printViaRawBT = (escPosBytes) => {
-  if (!isAndroid()) return false;
+export const printViaRawBT = (escPosBytes, retryCount = 0) => {
+  if (!isAndroid()) {
+    console.debug('[v0] Not on Android, skipping RawBT');
+    return false;
+  }
+
+  if (!escPosBytes || escPosBytes.length === 0) {
+    console.error('[v0] RawBT: No data to print');
+    toast.error('No print data provided');
+    return false;
+  }
+
+  let iframe = null;
+  let timeoutId = null;
+  let iframeRemoved = false;
+
   try {
     const b64 = uint8ToBase64(escPosBytes);
+    if (!b64 || b64.length === 0) {
+      console.error('[v0] RawBT: Base64 encoding failed');
+      return false;
+    }
+
     // rawbt:base64,<payload>  -- documented scheme
     const url = `rawbt:base64,${b64}`;
 
     // Use a hidden iframe to avoid any blank navigation page in TWA
-    const iframe = document.createElement('iframe');
+    iframe = document.createElement('iframe');
     iframe.style.display = 'none';
-    iframe.src = url;
-    document.body.appendChild(iframe);
-    setTimeout(() => {
-      try { document.body.removeChild(iframe); } catch (e) { /* noop */ }
-    }, 2500);
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = 'none';
+    
+    const removeIframe = () => {
+      if (!iframeRemoved && iframe) {
+        iframeRemoved = true;
+        try {
+          if (iframe.parentNode) {
+            iframe.parentNode.removeChild(iframe);
+          }
+          // Clear references for garbage collection
+          iframe.onload = null;
+          iframe.onerror = null;
+          iframe.src = 'about:blank'; // Clear src
+          iframe = null;
+        } catch (e) {
+          console.debug('[v0] RawBT iframe cleanup error:', e.message);
+        }
+      }
+    };
 
-    toast.success('Sent to RawBT printer');
+    // Set timeout to remove iframe
+    timeoutId = setTimeout(removeIframe, PRINT_TIMEOUT);
+
+    // Try to detect if print succeeded
+    iframe.onload = () => {
+      clearTimeout(timeoutId);
+      removeIframe();
+      console.log('[v0] RawBT print sent successfully');
+      toast.success('Print sent to RawBT');
+    };
+
+    iframe.onerror = () => {
+      clearTimeout(timeoutId);
+      removeIframe();
+      // RawBT may not have onerror callback, but handle gracefully
+      if (retryCount < MAX_RETRY_ATTEMPTS) {
+        console.debug(`[v0] RawBT retry attempt ${retryCount + 1}`);
+        return printViaRawBT(escPosBytes, retryCount + 1);
+      }
+      console.warn('[v0] RawBT print may have failed');
+    };
+
+    document.body.appendChild(iframe);
+    iframe.src = url;
+
     return true;
   } catch (err) {
-    console.error('RawBT print failed', err);
+    // Cleanup on error
+    if (timeoutId) clearTimeout(timeoutId);
+    if (iframe && iframe.parentNode) {
+      try {
+        iframe.parentNode.removeChild(iframe);
+      } catch (e) {
+        console.debug('[v0] RawBT error cleanup failed');
+      }
+    }
+
+    console.error('[v0] RawBT print failed:', err.message);
+    if (retryCount < MAX_RETRY_ATTEMPTS) {
+      console.debug(`[v0] RawBT retry attempt ${retryCount + 1}`);
+      return printViaRawBT(escPosBytes, retryCount + 1);
+    }
+    toast.error('RawBT print failed - is RawBT app installed?');
     return false;
   }
 };
@@ -250,12 +363,38 @@ export const printViaRawBT = (escPosBytes) => {
  * any installed printer service (Google Cloud Print, HP, Canon, Epson …).
  */
 export const shareReceiptText = async (text) => {
-  if (!navigator.share) return false;
+  if (!text || typeof text !== 'string') {
+    console.error('[v0] Share: Invalid text provided');
+    return false;
+  }
+
+  if (!navigator.share) {
+    console.warn('[v0] Web Share API not available');
+    return false;
+  }
+
   try {
-    await navigator.share({ title: 'Receipt', text });
+    const shareData = {
+      title: 'Receipt',
+      text: text.substring(0, 10000) // Limit text to prevent issues
+    };
+
+    await navigator.share(shareData);
+    console.log('[v0] Receipt shared successfully');
     return true;
-  } catch (e) {
-    if (e?.name !== 'AbortError') console.error('share failed', e);
+  } catch (err) {
+    // AbortError is normal (user cancelled share)
+    if (err?.name === 'AbortError') {
+      console.debug('[v0] User cancelled share');
+      return false;
+    }
+    
+    // Other errors should be logged
+    if (err?.name === 'NotAllowedError') {
+      console.warn('[v0] Share permission denied');
+    } else {
+      console.error('[v0] Share failed:', err.message);
+    }
     return false;
   }
 };
@@ -263,20 +402,52 @@ export const shareReceiptText = async (text) => {
 /**
  * One-shot entry: takes ESC/POS bytes and chooses the best Android bridge.
  * Returns true when something was attempted.
+ * 
+ * Priority order:
+ * 1. RawBT (most reliable for Bubblewrap TWA with paired printer)
+ * 2. Web Share API fallback (user can pick any printer app)
  */
 export const androidPrint = async (escPosBytes, plainText = '') => {
-  if (!isAndroid()) return false;
-
-  // 1) RawBT (most reliable for Bubblewrap TWA)
-  if (printViaRawBT(escPosBytes)) return true;
-
-  // 2) share fallback
-  if (plainText) {
-    const ok = await shareReceiptText(plainText);
-    if (ok) return true;
+  if (!isAndroid()) {
+    console.debug('[v0] androidPrint: Not on Android');
+    return false;
   }
 
-  return false;
+  try {
+    // Validate inputs
+    if (!escPosBytes || escPosBytes.length === 0) {
+      console.error('[v0] androidPrint: No ESC/POS data provided');
+      toast.error('No print data available');
+      return false;
+    }
+
+    console.log('[v0] androidPrint: Starting with', escPosBytes.length, 'bytes');
+
+    // 1) Try RawBT (most reliable for Bubblewrap TWA)
+    if (printViaRawBT(escPosBytes)) {
+      console.log('[v0] androidPrint: RawBT print initiated');
+      return true;
+    }
+
+    // 2) Share fallback - give user chance to pick printer app
+    if (plainText && plainText.length > 0) {
+      console.log('[v0] androidPrint: Trying share fallback');
+      const shareOk = await shareReceiptText(plainText);
+      if (shareOk) {
+        console.log('[v0] androidPrint: Share successful');
+        return true;
+      }
+    }
+
+    // All methods failed
+    console.error('[v0] androidPrint: All print methods failed');
+    toast.error('Print failed - ensure RawBT app is installed and paired');
+    return false;
+  } catch (err) {
+    console.error('[v0] androidPrint: Unexpected error:', err.message);
+    toast.error('Print error: ' + (err.message || 'Unknown error'));
+    return false;
+  }
 };
 
 /**
