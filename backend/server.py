@@ -2991,33 +2991,34 @@ async def login(credentials: UserLogin):
     # Fallback: try case-insensitive regex for older records without username_lower field
     if not user:
         user = await db.users.find_one(
-            {"username": {"$regex": f"^{username_clean}$", "$options": "i"}}, 
+            {"username": {"$regex": f"^{re.escape(username_clean)}$", "$options": "i"}}, 
             {"_id": 0}
         )
     
     # Also try to find by email (users might login with email)
     if not user:
         user = await db.users.find_one(
-            {"email": {"$regex": f"^{username_clean}$", "$options": "i"}}, 
+            {"email": {"$regex": f"^{re.escape(username_clean)}$", "$options": "i"}}, 
             {"_id": 0}
         )
     
     if not user:
-        print(f"❌ Login failed: User not found for {username_clean}")
+        # Constant-ish timing: still run a dummy bcrypt to avoid user-enumeration via timing.
+        try:
+            verify_password(credentials.password, "$2b$12$abcdefghijklmnopqrstuv1234567890123456789012345678901")
+        except Exception:
+            pass
         raise HTTPException(status_code=401, detail="Invalid credentials")
     
     # Verify password
     try:
         password_valid = verify_password(credentials.password, user["password"])
     except Exception as e:
-        print(f"❌ Password verification error for {username_clean}: {str(e)}")
+        logging.warning(f"Password verification error for {username_lower}: {e}")
         raise HTTPException(status_code=401, detail="Invalid credentials")
     
     if not password_valid:
-        print(f"❌ Login failed: Invalid password for {username_clean}")
         raise HTTPException(status_code=401, detail="Invalid credentials")
-    
-    print(f"✅ Login successful for {username_clean}")
 
     # For staff users, get business_settings and subscription from their admin
     business_settings = user.get("business_settings")
