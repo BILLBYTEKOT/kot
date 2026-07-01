@@ -846,7 +846,7 @@ function App() {
             path="/setup"
             element={
               <SetupRoute isAuthChecking={isAuthChecking}>
-                <BusinessSetupPage user={user} />
+                <BusinessSetupPage user={user} setUser={setUser} />
               </SetupRoute>
             }
           />

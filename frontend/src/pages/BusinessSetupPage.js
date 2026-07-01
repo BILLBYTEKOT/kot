@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { Building2, Upload, X } from 'lucide-react';
 
-const BusinessSetupPage = ({ user }) => {
+const BusinessSetupPage = ({ user, setUser }) => {
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
   const [loading, setLoading] = useState(false);
@@ -96,7 +96,7 @@ const BusinessSetupPage = ({ user }) => {
       // Submit business settings
       await axios.post(`${API}/business/setup`, formData);
 
-      // Fetch updated user data
+      // Fetch updated user data (now has setup_completed:true)
       const userResponse = await axios.get(`${API}/auth/me`);
       const updatedUser = userResponse.data;
 
@@ -108,12 +108,18 @@ const BusinessSetupPage = ({ user }) => {
         localStorage.setItem('user', JSON.stringify(updatedUser));
       }
 
+      // CRITICAL: update the App-level `user` state so the /setup route guard
+      // (which redirects setup_completed=false users back here) releases the user.
+      if (typeof setUser === 'function') {
+        setUser(updatedUser);
+      }
+
       toast.success('🎉 Business setup complete! Taking you to your dashboard…');
 
-      // Smooth SPA navigation — no hard reload
+      // Small delay so the user sees the toast, then SPA-navigate.
       setTimeout(() => {
         navigate('/dashboard', { replace: true });
-      }, 400);
+      }, 500);
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Failed to complete setup');
     } finally {
