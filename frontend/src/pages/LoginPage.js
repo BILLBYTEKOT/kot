@@ -174,16 +174,32 @@ const LoginPage = ({ setUser }) => {
     
     setOtpLoading(true);
     try {
-      await axios.post(`${API}/auth/verify-registration`, {
+      const response = await axios.post(`${API}/auth/verify-registration`, {
         email: formData.email.trim(),
         otp: otp
       });
-      
-      toast.success('🎉 Email verified! Account created successfully. Please login.');
-      setShowOTPVerification(false);
-      setOtp('');
-      setIsLogin(true);
-      setFormData({ ...formData, password: '' });
+
+      // Backend now returns {token, user} — auto-login the user so they don't
+      // drop off between verification and login. This was the main retention leak.
+      const { token, access_token, user } = response.data || {};
+      const authToken = token || access_token;
+
+      if (authToken && user) {
+        setAuthToken(authToken, user);
+        setUser(user);
+        toast.success('🎉 Email verified! Welcome to BillByteKOT');
+        setShowOTPVerification(false);
+        setOtp('');
+        // New admin accounts always land on /setup; if setup already done, dashboard.
+        navigate(user.setup_completed ? '/dashboard' : '/setup');
+      } else {
+        // Fallback: legacy response shape — fall back to old "please login" flow.
+        toast.success('🎉 Email verified! Please login to continue.');
+        setShowOTPVerification(false);
+        setOtp('');
+        setIsLogin(true);
+        setFormData({ ...formData, password: '' });
+      }
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Invalid OTP');
     } finally {
@@ -217,30 +233,6 @@ const LoginPage = ({ setUser }) => {
     }
   };
 
-  const handleSkipVerification = async () => {
-    setOtpLoading(true);
-    try {
-      // Register directly without OTP verification
-      await axios.post(`${API}/auth/register`, {
-        username: formData.username.trim(),
-        email: formData.email.trim(),
-        password: formData.password,
-        role: 'admin',
-        referral_code: formData.referralCode.trim() || null  // Include referral code (Requirement 3.7)
-      });
-      
-      toast.success('Account created! Please login to continue.');
-      setShowOTPVerification(false);
-      setOtp('');
-      setIsLogin(true);
-      setFormData({ ...formData, password: '', referralCode: '' });
-    } catch (error) {
-      handleRegistrationError(error);
-    } finally {
-      setOtpLoading(false);
-    }
-  };
-
   const handleResendOTP = async () => {
     setOtpLoading(true);
     try {
@@ -249,14 +241,9 @@ const LoginPage = ({ setUser }) => {
         email: formData.email.trim(),
         password: formData.password,
         role: 'admin',
-        referral_code: formData.referralCode.trim() || null  // Include referral code
+        referral_code: formData.referralCode.trim() || null
       });
       toast.success('New OTP sent to your email!');
-      
-      // If debug mode, show OTP
-      if (response.data.otp) {
-        toast.info(`Debug OTP: ${response.data.otp}`, { duration: 10000 });
-      }
     } catch (error) {
       handleRegistrationError(error);
     } finally {
@@ -321,28 +308,17 @@ const LoginPage = ({ setUser }) => {
               {otpLoading ? 'Verifying...' : 'Verify & Create Account'}
             </Button>
 
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                onClick={handleResendOTP}
-                disabled={otpLoading}
-                className="flex-1 h-10"
-              >
-                Resend OTP
-              </Button>
-              <Button
-                variant="ghost"
-                onClick={handleSkipVerification}
-                disabled={otpLoading}
-                className="flex-1 h-10 text-gray-500 hover:text-gray-700"
-              >
-                Skip for now
-              </Button>
-            </div>
+            <Button
+              variant="outline"
+              onClick={handleResendOTP}
+              disabled={otpLoading}
+              className="w-full h-10"
+            >
+              Resend OTP
+            </Button>
 
             <p className="text-xs text-center text-gray-400 mt-4">
               Didn't receive the email? Check your spam folder or click resend.
-              <br />You can also skip verification and verify later.
             </p>
 
             <button

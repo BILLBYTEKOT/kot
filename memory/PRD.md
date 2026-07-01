@@ -29,9 +29,26 @@
    - Wired to `useBluetoothPrinter` context — status survives page navigation.
 
 ## Next Action Items
-- [ ] Modernize remaining high-traffic pages (Dashboard, BillingPage, OrdersPage, SettingsPage header/tabs, Counter Sale mobile) — deferred from this session due to scope.
-- [ ] Optional: Prompt users to install RawBT automatically via an in-app toast the first time they hit a print error on Android.
-- [ ] Optional: Use `onesignal`/FCM to push a "printer reconnected" notification.
+- [ ] Modernize remaining high-traffic pages (Dashboard, BillingPage, OrdersPage, SettingsPage header/tabs, Counter Sale mobile) — deferred.
+- [ ] Optional: RawBT install prompt on first Android print error.
+- [ ] Optional: `printer reconnected` push notification.
+
+## What's been implemented (2026-07-01) — Registration retention + security patches
+- **Removed OTP leakage** from `/api/auth/register-request` response body and stopped logging full OTPs.
+- **verify-registration returns `{token, user}`** so users are auto-logged in after email verify (was the main funnel drop).
+- **OTP storage moved to Mongo** (`registration_otps`) — survives backend restarts / worker cycles.
+- **Removed dead code** after `return user_obj` (the referral tracking that never ran). Referral record is now created inline before the response.
+- **Per-email OTP request rate limit** (5 / 10 min) in addition to per-IP auth limit.
+- **`/api/auth/register` (direct/no-OTP) gated** behind `ALLOW_DIRECT_REGISTER=true`. Returns 403 in normal deployments.
+- Frontend `handleResendOTP` referenced-before-assigned bug fixed.
+- Frontend "Skip verification" bypass removed.
+- BusinessSetupPage: no more `window.location.reload()` — SPA-native handoff, updates auth storage with fresh user.
+
+## Files Changed (this session)
+- `backend/server.py` (auth register/verify + Mongo OTP store + rate limit + gated direct-register)
+- `frontend/src/pages/LoginPage.js` (auto-login on verify, resend fix, skip removed)
+- `frontend/src/pages/BusinessSetupPage.js` (SPA-native handoff)
+- Created `backend/.env`, `frontend/.env`, `memory/test_credentials.md`
 
 ## Backlog
 - P1: UI modernization sweep (remaining ~35 pages).

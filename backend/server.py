@@ -14,6 +14,7 @@ import tempfile
 import io
 import time
 import random
+import re
 import math
 import secrets
 import builtins
@@ -2626,20 +2627,16 @@ async def register_debug(user_data: RegisterOTPRequest):
     otp = ''.join([str(random.randint(0, 9)) for _ in range(6)])
     expires_at = datetime.now(timezone.utc) + timedelta(minutes=10)
     
-    # Store OTP and user data temporarily
-    registration_otp_storage[email_lower] = {
-        "otp": otp,
-        "expires": expires_at,
-        "user_data": {
-            "username": user_data.username.strip(),
-            "username_lower": username_lower,
-            "email": user_data.email.strip(),
-            "email_lower": email_lower,
-            "password": user_data.password,
-            "role": user_data.role,
-            "referral_code": user_data.referral_code.strip().upper() if user_data.referral_code else None
-        }
-    }
+    # Store OTP and user data via the persistent store
+    await _otp_store_set(email_lower, otp, {
+        "username": user_data.username.strip(),
+        "username_lower": username_lower,
+        "email": user_data.email.strip(),
+        "email_lower": email_lower,
+        "password": user_data.password,
+        "role": user_data.role,
+        "referral_code": user_data.referral_code.strip().upper() if user_data.referral_code else None
+    }, expires_at)
     
     # Send OTP email asynchronously (non-blocking)
     asyncio.create_task(send_registration_otp_email(user_data.email.strip(), otp, user_data.username.strip()))
@@ -2658,6 +2655,13 @@ async def register_request(user_data: RegisterOTPRequest):
     # Normalize username and email to lowercase for case-insensitive matching
     username_lower = user_data.username.lower().strip()
     email_lower = user_data.email.lower().strip()
+
+    # Per-email OTP request rate limit (prevents spam / user enumeration by timing)
+    if not await _check_otp_rate_limit(email_lower, max_requests=5, window_seconds=600):
+        raise HTTPException(
+            status_code=429,
+            detail="Too many OTP requests for this email. Please wait a few minutes and try again."
+        )
     
     # Check if username already exists (case-insensitive)
     existing_username = await db.users.find_one(
@@ -2666,7 +2670,7 @@ async def register_request(user_data: RegisterOTPRequest):
     # Fallback: also check original username field with regex for older records
     if not existing_username:
         existing_username = await db.users.find_one(
-            {"username": {"$regex": f"^{user_data.username}$", "$options": "i"}}, {"_id": 0}
+            {"username": {"$regex": f"^{re.escape(user_data.username)}$", "$options": "i"}}, {"_id": 0}
         )
     if existing_username:
         raise HTTPException(status_code=400, detail="Username already exists")
@@ -2678,7 +2682,7 @@ async def register_request(user_data: RegisterOTPRequest):
     # Fallback: also check original email field with regex for older records
     if not existing_email:
         existing_email = await db.users.find_one(
-            {"email": {"$regex": f"^{user_data.email}$", "$options": "i"}}, {"_id": 0}
+            {"email": {"$regex": f"^{re.escape(user_data.email)}$", "$options": "i"}}, {"_id": 0}
         )
     if existing_email:
         raise HTTPException(status_code=400, detail="Email already registered")
@@ -2687,201 +2691,174 @@ async def register_request(user_data: RegisterOTPRequest):
     otp = ''.join([str(random.randint(0, 9)) for _ in range(6)])
     expires_at = datetime.now(timezone.utc) + timedelta(minutes=10)
     
-    # Store OTP and user data temporarily (store lowercase versions for consistency)
-    registration_otp_storage[email_lower] = {
-        "otp": otp,
-        "expires": expires_at,
-        "user_data": {
-            "username": user_data.username.strip(),  # Keep original case for display
-            "username_lower": username_lower,  # Lowercase for lookups
-            "email": user_data.email.strip(),  # Keep original case for display
-            "email_lower": email_lower,  # Lowercase for lookups
-            "password": user_data.password,
-            "role": user_data.role,
-            "referral_code": user_data.referral_code.strip().upper() if user_data.referral_code and user_data.referral_code.strip() else None  # Store referral code if provided
-        }
+    # Persist OTP + user data (Mongo, so it survives restarts)
+    user_data_payload = {
+        "username": user_data.username.strip(),
+        "username_lower": username_lower,
+        "email": user_data.email.strip(),
+        "email_lower": email_lower,
+        "password": user_data.password,
+        "role": user_data.role,
+        "referral_code": user_data.referral_code.strip().upper() if user_data.referral_code and user_data.referral_code.strip() else None,
     }
+    await _otp_store_set(email_lower, otp, user_data_payload, expires_at)
     
     # Send OTP email asynchronously (non-blocking)
     asyncio.create_task(send_registration_otp_email(user_data.email.strip(), otp, user_data.username.strip()))
     
+    # SECURITY: never return the OTP in the response body.
     return {
         "message": "OTP sent to your email. Please verify to complete registration.",
         "email": user_data.email,
         "success": True,
-        "otp": otp,  # Always return OTP for debugging signup issues
-        "debug_info": {
-            "email_key": email_lower,
-            "otp_length": len(otp),
-            "expires_in_minutes": 15
-        }
+        "expires_in_minutes": 10,
     }
 
 
-@api_router.post("/auth/verify-registration", response_model=User)
+@api_router.post("/auth/verify-registration")
 async def verify_registration(verify_data: VerifyRegistrationOTP):
-    """Step 2: Verify OTP and complete registration"""
+    """Step 2: Verify OTP and complete registration. Returns JWT token so user is auto-logged-in."""
     # Normalize email for lookup
     email_lower = verify_data.email.lower().strip()
-    
-    # Get OTP data (try lowercase first, then original)
-    otp_data = registration_otp_storage.get(email_lower) or registration_otp_storage.get(verify_data.email)
+
+    # Get OTP data (Mongo-backed with in-memory fallback)
+    otp_data = await _otp_store_get(email_lower, verify_data.email)
     if not otp_data:
         raise HTTPException(status_code=400, detail="No registration request found. Please request OTP again.")
-    
+
     # Check if OTP expired
-    if datetime.now(timezone.utc) > otp_data["expires"]:
-        del registration_otp_storage[verify_data.email]
+    expires = otp_data.get("expires")
+    if isinstance(expires, str):
+        try:
+            expires = datetime.fromisoformat(expires.replace("Z", "+00:00"))
+        except Exception:
+            expires = None
+    if expires and expires.tzinfo is None:
+        expires = expires.replace(tzinfo=timezone.utc)
+    if not expires or datetime.now(timezone.utc) > expires:
+        await _otp_store_delete(email_lower, verify_data.email)
         raise HTTPException(status_code=400, detail="OTP has expired. Please request a new one.")
-    
-    # Verify OTP (normalize both values for comparison)
-    stored_otp = str(otp_data["otp"]).strip()
+
+    # Verify OTP (constant-time-ish compare on strings)
+    stored_otp = str(otp_data.get("otp", "")).strip()
     input_otp = str(verify_data.otp).strip()
-    
-    print(f"🔍 OTP Comparison:")
-    print(f"  Stored OTP: '{stored_otp}' (length: {len(stored_otp)})")
-    print(f"  Input OTP: '{input_otp}' (length: {len(input_otp)})")
-    print(f"  Match: {stored_otp == input_otp}")
-    
-    if stored_otp != input_otp:
-        print(f"❌ OTP mismatch - Expected: '{stored_otp}', Got: '{input_otp}'")
-        raise HTTPException(status_code=400, detail=f"Invalid OTP. Please check and try again.")
-    
+    if not stored_otp or not secrets.compare_digest(stored_otp, input_otp):
+        # SECURITY: do NOT log stored/expected OTP.
+        raise HTTPException(status_code=400, detail="Invalid OTP. Please check and try again.")
+
     # Get user data from storage
     user_data = otp_data["user_data"]
-    
-    # GENERATE UNIQUE REFERRAL CODE BEFORE CREATING USER OBJECT
+
+    # Generate unique referral code
     try:
         user_referral_code = await generate_unique_referral_code()
-        print(f"✅ Generated referral code for new user: {user_referral_code}")
     except Exception as e:
-        print(f"⚠️ Failed to generate referral code: {e}")
-        # If generation fails, create a simple unique code
-        import time
-        user_referral_code = f"U{int(time.time())}"[-8:].upper().zfill(8)
-        print(f"✅ Using fallback referral code: {user_referral_code}")
-    
-    # Create user object WITH referral_code
+        logging.warning(f"Failed to generate referral code, using fallback: {e}")
+        import time as _time
+        user_referral_code = f"U{int(_time.time())}"[-8:].upper().zfill(8)
+
+    # Create user object
     user_obj = User(
         username=user_data["username"],
         email=user_data["email"],
         role=user_data["role"],
-        referral_code=user_referral_code  # ALWAYS SET A REFERRAL CODE
+        referral_code=user_referral_code,
     )
-    
+
     # If admin, they are their own organization
     if user_data["role"] == "admin":
         user_obj.organization_id = user_obj.id
-    
-    # Add email_verified flag and lowercase fields for case-insensitive lookups
+
     doc = user_obj.model_dump()
-    
-    # Handle referral if code was provided during signup
+
+    # Referral tracking
     referral_code = user_data.get("referral_code")
     if referral_code and referral_code.strip():
         doc["referred_by"] = referral_code.strip().upper()
-        print(f"✅ User referred by: {referral_code}")
-    
-    # Initialize other referral fields (referral_code already set in user_obj)
+
     doc["wallet_balance"] = 0.0
     doc["total_referrals"] = 0
     doc["total_referral_earnings"] = 0.0
-    
-    # DEBUG: Print document keys to see what's being inserted
-    print(f"🔍 Document keys before insert: {list(doc.keys())}")
-    print(f"🔍 Referral code in doc: {doc.get('referral_code', 'NOT_FOUND')}")
-    
     doc["password"] = hash_password(user_data["password"])
     doc["created_at"] = doc["created_at"].isoformat()
     doc["email_verified"] = True
     doc["email_verified_at"] = datetime.now(timezone.utc).isoformat()
-    # Add lowercase fields for case-insensitive lookups
     doc["username_lower"] = user_data.get("username_lower", user_data["username"].lower().strip())
     doc["email_lower"] = user_data.get("email_lower", user_data["email"].lower().strip())
-    
+
     try:
-        # Insert user into database
         await db.users.insert_one(doc)
-        print(f"✅ User created successfully: {user_obj.username} ({user_obj.email})")
-        
-        # Remove used OTP (clean up all possible keys)
-        cleanup_keys = [email_lower, verify_data.email, verify_data.email.strip()]
-        for key in cleanup_keys:
-            registration_otp_storage.pop(key, None)
-        print(f"✅ OTP cleaned up successfully")
-        
-        # Send welcome email asynchronously
+        logging.info(f"User created: {user_obj.username} ({user_obj.email})")
+
+        # Cleanup OTP
+        await _otp_store_delete(email_lower, verify_data.email, verify_data.email.strip())
+
+        # Best-effort: create referral record
+        if referral_code and referral_code.strip():
+            try:
+                referrer = await db.users.find_one({"referral_code": referral_code.strip().upper()})
+                if referrer:
+                    await db.referrals.insert_one({
+                        "id": str(uuid.uuid4()),
+                        "referrer_user_id": referrer.get("id"),
+                        "referee_user_id": user_obj.id,
+                        "referral_code": referral_code.strip().upper(),
+                        "status": "PENDING",
+                        "referee_discount": REFERRAL_DISCOUNT_AMOUNT,
+                        "referrer_reward": REFERRAL_REWARD_AMOUNT,
+                        "referee_email": user_data["email"],
+                        "created_at": datetime.now(timezone.utc).isoformat(),
+                    })
+            except Exception as e:
+                logging.warning(f"Referral record creation failed: {e}")
+
+        # Send welcome email asynchronously (non-blocking)
         try:
             from email_automation import send_welcome_email
             asyncio.create_task(send_welcome_email(user_data["email"], user_data["username"]))
-            print(f"✅ Welcome email queued for {user_data['email']}")
         except Exception as e:
-            print(f"⚠️ Failed to send welcome email: {e}")
-        
-        return user_obj
-        
+            logging.warning(f"Welcome email queue failed: {e}")
+
+        # CRITICAL FIX: issue token so frontend can auto-login instead of forcing another login step.
+        token = create_access_token({"user_id": user_obj.id, "role": user_obj.role})
+        return {
+            "token": token,
+            "user": {
+                "id": user_obj.id,
+                "username": user_obj.username,
+                "email": user_obj.email,
+                "role": user_obj.role,
+                "organization_id": user_obj.organization_id,
+                "subscription_active": False,
+                "bill_count": 0,
+                "setup_completed": False,
+                "onboarding_completed": False,
+                "business_settings": None,
+                "login_method": "password",
+            },
+            "success": True,
+        }
+
     except Exception as e:
-        print(f"❌ Error during user creation: {e}")
-        import traceback
-        traceback.print_exc()
-        
-        # Clean up OTP on error
-        cleanup_keys = [email_lower, verify_data.email, verify_data.email.strip()]
-        for key in cleanup_keys:
-            registration_otp_storage.pop(key, None)
-        
-        # Provide user-friendly error message
+        logging.error(f"Error during user creation: {e}", exc_info=True)
+        await _otp_store_delete(email_lower, verify_data.email, verify_data.email.strip())
         if "duplicate key" in str(e).lower() or "already exists" in str(e).lower():
             raise HTTPException(status_code=400, detail="Account already exists. Please try logging in instead.")
-        else:
-            raise HTTPException(status_code=500, detail="Account creation failed. Please try again or contact support.")
-    
-    # Apply referral if code was provided (Requirement 3.7)
-    if referral_code:
-        try:
-            # Find the referrer by code
-            referrer = await db.users.find_one({"referral_code": referral_code.upper()})
-            if referrer:
-                # Create referral record with PENDING status
-                referral_record = {
-                    "id": str(uuid.uuid4()),
-                    "referrer_user_id": referrer.get("id"),
-                    "referee_user_id": user_obj.id,
-                    "referral_code": referral_code,
-                    "status": "PENDING",
-                    "referee_discount": REFERRAL_DISCOUNT_AMOUNT,
-                    "referrer_reward": REFERRAL_REWARD_AMOUNT,
-                    "referee_email": user_data["email"],
-                    "created_at": datetime.now(timezone.utc).isoformat()
-                }
-                await db.referrals.insert_one(referral_record)
-                print(f"✅ Referral record created for user {user_obj.id} with code {referral_code}")
-            else:
-                print(f"⚠️ Referrer not found for code: {referral_code}")
-        except Exception as e:
-            print(f"⚠️ Failed to create referral record: {e}")
-    
-    print(f"✅ User created successfully: {user_obj.username} ({user_obj.email})")
-    
-    # Remove used OTP (clean up all possible keys)
-    cleanup_keys = [email_lower, verify_data.email, verify_data.email.strip()]
-    for key in cleanup_keys:
-        registration_otp_storage.pop(key, None)
-    print(f"✅ OTP cleaned up successfully")
-    
-    # Send welcome email asynchronously
-    try:
-        from email_automation import send_welcome_email
-        asyncio.create_task(send_welcome_email(user_data["email"], user_data["username"]))
-    except Exception as e:
-        print(f"Failed to send welcome email: {e}")
-    
-    return user_obj
+        raise HTTPException(status_code=500, detail="Account creation failed. Please try again or contact support.")
 
 
 @api_router.post("/auth/register", response_model=User)
 async def register_direct(user_data: UserCreate):
-    """Direct registration without OTP verification"""
+    """Direct registration without OTP verification.
+
+    SECURITY: This endpoint bypasses email verification and is disabled by default.
+    Set ALLOW_DIRECT_REGISTER=true in the environment to enable it (dev / internal seed only).
+    """
+    if os.getenv("ALLOW_DIRECT_REGISTER", "false").lower() != "true":
+        raise HTTPException(
+            status_code=403,
+            detail="Direct registration is disabled. Please complete email verification."
+        )
     # Normalize username and email to lowercase for case-insensitive matching
     username_lower = user_data.username.lower().strip()
     email_lower = user_data.email.lower().strip()
@@ -3392,11 +3369,85 @@ async def reset_password(request: ResetPasswordRequest):
 import random
 import string
 
-# In-memory storage for registration OTP
-registration_otp_storage = {}  # {email: {"otp": "123456", "expires": timestamp, "user_data": {...}}}
+# Registration OTP storage: Mongo-backed (survives restarts) with in-memory fallback
+registration_otp_storage = {}  # legacy in-memory fallback
 
 # In-memory storage for staff OTP verification
 staff_otp_storage = {}  # {email: {"otp": "123456", "expires": timestamp, "staff_data": {...}, "admin_id": "..."}}
+
+async def _otp_store_set(email: str, otp: str, user_data: dict, expires_at: datetime, ttl_seconds: int = 900):
+    """Persist an OTP record in Mongo so verification survives backend restarts."""
+    try:
+        await db.registration_otps.update_one(
+            {"_id": email},
+            {
+                "$set": {
+                    "_id": email,
+                    "otp": str(otp),
+                    "user_data": user_data,
+                    "expires_at": expires_at,
+                    "created_at": datetime.now(timezone.utc),
+                }
+            },
+            upsert=True,
+        )
+    except Exception as e:
+        logging.warning(f"Mongo OTP store failed, falling back to memory: {e}")
+        registration_otp_storage[email] = {
+            "otp": str(otp),
+            "expires": expires_at,
+            "user_data": user_data,
+        }
+
+
+async def _otp_store_get(email_lower: str, email_raw: str = ""):
+    """Fetch an OTP record. Tries Mongo first, then memory fallback. Returns dict or None."""
+    try:
+        doc = await db.registration_otps.find_one({"_id": email_lower})
+        if not doc and email_raw and email_raw != email_lower:
+            doc = await db.registration_otps.find_one({"_id": email_raw})
+        if doc:
+            return {
+                "otp": doc.get("otp"),
+                "expires": doc.get("expires_at"),
+                "user_data": doc.get("user_data", {}),
+            }
+    except Exception as e:
+        logging.warning(f"Mongo OTP lookup failed: {e}")
+    # Fallback to memory
+    return registration_otp_storage.get(email_lower) or registration_otp_storage.get(email_raw)
+
+
+async def _otp_store_delete(*keys):
+    """Delete OTP record by any matching key (email variants)."""
+    keys = [k for k in keys if k]
+    if not keys:
+        return
+    try:
+        await db.registration_otps.delete_many({"_id": {"$in": list(set(keys))}})
+    except Exception as e:
+        logging.warning(f"Mongo OTP delete failed: {e}")
+    for k in keys:
+        registration_otp_storage.pop(k, None)
+
+
+# Per-email rate limit for OTP requests (prevents spam/enumeration)
+_otp_request_counter: dict = {}  # email_lower -> [timestamps]
+
+async def _check_otp_rate_limit(email_lower: str, max_requests: int = 5, window_seconds: int = 600) -> bool:
+    """Return True if allowed, False if rate limit exceeded."""
+    now = time.time()
+    async with _rate_limit_lock:
+        stamps = [t for t in _otp_request_counter.get(email_lower, []) if now - t < window_seconds]
+        if len(stamps) >= max_requests:
+            _otp_request_counter[email_lower] = stamps
+            return False
+        stamps.append(now)
+        _otp_request_counter[email_lower] = stamps
+    return True
+
+
+# Lead Capture (Public endpoint - no auth required)
 
 class LeadCapture(BaseModel):
     name: str

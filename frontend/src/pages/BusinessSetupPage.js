@@ -95,21 +95,25 @@ const BusinessSetupPage = ({ user }) => {
     try {
       // Submit business settings
       await axios.post(`${API}/business/setup`, formData);
-      
+
       // Fetch updated user data
       const userResponse = await axios.get(`${API}/auth/me`);
       const updatedUser = userResponse.data;
-      
-      // Update localStorage with new user data
-      localStorage.setItem('user', JSON.stringify(updatedUser));
-      
-      toast.success('Business setup completed!');
-      
-      // Navigate to dashboard after a short delay
+
+      // Refresh auth storage in ALL mechanisms (localStorage / IndexedDB / cookie)
+      const currentToken = localStorage.getItem('token');
+      if (currentToken) {
+        setAuthToken(currentToken, updatedUser);
+      } else {
+        localStorage.setItem('user', JSON.stringify(updatedUser));
+      }
+
+      toast.success('🎉 Business setup complete! Taking you to your dashboard…');
+
+      // Smooth SPA navigation — no hard reload
       setTimeout(() => {
-        navigate('/dashboard');
-        window.location.reload(); // Force reload to update app state
-      }, 1000);
+        navigate('/dashboard', { replace: true });
+      }, 400);
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Failed to complete setup');
     } finally {
