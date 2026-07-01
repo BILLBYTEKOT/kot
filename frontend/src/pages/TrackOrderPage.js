@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Button } from '../components/ui/button';
 import { Clock, Phone, MessageCircle, RefreshCw, CheckCircle, ChefHat, Bell, Utensils } from 'lucide-react';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'https://restro-ai.onrender.com';
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || window.location.origin;
 
 const TrackOrderPage = () => {
   const { trackingToken } = useParams();

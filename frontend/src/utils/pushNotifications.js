@@ -1,7 +1,7 @@
 // Push Notification Utility for BillByteKOT
 import axios from 'axios';
 
-const API = process.env.REACT_APP_API_URL || 'https://restro-ai.onrender.com/api';
+const API = process.env.REACT_APP_API_URL || (window.location.origin + '/api');
 
 // Convert VAPID key to Uint8Array
 function urlBase64ToUint8Array(base64String) {

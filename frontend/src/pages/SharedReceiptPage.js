@@ -2,7 +2,7 @@ import axios from 'axios';
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'https://restro-ai.onrender.com';
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || window.location.origin;
 
 const CURRENCY_SYMBOLS = {
   INR: '₹',

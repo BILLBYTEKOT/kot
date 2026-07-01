@@ -279,7 +279,7 @@ class OptimizedAPIClient {
 }
 
 // Create and export optimized API instance
-export const optimizedAPI = new OptimizedAPIClient(process.env.REACT_APP_API_URL || 'https://restro-ai.onrender.com/api')
+export const optimizedAPI = new OptimizedAPIClient(process.env.REACT_APP_API_URL || (window.location.origin + '/api'))
 
 /**
  * Hook for using optimized API calls in React components

@@ -319,10 +319,10 @@ backend:
 frontend:
   - task: "Auto-login after OTP verification"
     implemented: true
-    working: "PARTIAL"
+    working: true
     file: "frontend/src/pages/LoginPage.js"
-    stuck_count: 1
-    priority: "high"
+    stuck_count: 0
+    priority: "CRITICAL"
     needs_retesting: false
     status_history:
       - working: "NA"
@@ -344,10 +344,34 @@ frontend:
           - BusinessSetupPage.js lines 95-122: No window.location.reload(), uses SPA navigation
           
           RECOMMENDATION: Main agent should manually test the full flow or fix the MongoDB OTP storage/retrieval to enable automated testing.
+      - working: true
+        agent: "testing"
+        comment: |
+          ✅ FULL E2E TEST COMPLETED - AUTO-LOGIN WORKING PERFECTLY
+          
+          Complete flow tested: Sign Up → OTP → Auto-Login → Business Setup → Dashboard
+          
+          CRITICAL FIX VERIFIED (Steps 1-11):
+          ✅ Step 1-5: User signup form filled and submitted successfully
+          ✅ Step 6-7: OTP verification screen appeared correctly
+          ✅ Step 8: OTP retrieved from MongoDB successfully (using pymongo)
+          ✅ Step 9-10: OTP entered and "Verify & Create Account" button clicked
+          ✅ Step 11: **AUTO-LOGIN WORKING!** User navigated to /setup (NOT /login)
+            - URL after OTP verification: https://...preview.emergentagent.com/setup
+            - User was NOT bounced back to /login
+            - Token was stored and user is authenticated
+            - This is the CRITICAL FIX for user retention ✓
+          
+          SECURITY VERIFICATION:
+          ✅ NO "Skip Verification" or "Skip for now" button found anywhere in the flow
+          ✅ Users are required to complete OTP verification
+          ✅ No bypass path exists
+          
+          The main retention leak (users dropped to login after OTP) is FIXED.
 
   - task: "Resend OTP fix"
     implemented: true
-    working: "NA"
+    working: true
     file: "frontend/src/pages/LoginPage.js"
     stuck_count: 0
     priority: "high"
@@ -357,10 +381,14 @@ frontend:
         agent: "main"
         comment: |
           Fixed undefined `response` ReferenceError in handleResendOTP that made resend appear broken.
+      - working: true
+        agent: "testing"
+        comment: |
+          ✅ VERIFIED - Resend OTP button present and functional on OTP verification screen.
 
   - task: "Removed insecure Skip Verification button"
     implemented: true
-    working: "NA"
+    working: true
     file: "frontend/src/pages/LoginPage.js"
     stuck_count: 0
     priority: "medium"
@@ -370,19 +398,58 @@ frontend:
         agent: "main"
         comment: |
           Removed the "Skip for now" button and the handleSkipVerification handler. Users now must complete OTP verification. Removes the insecure /auth/register bypass path from the UI.
+      - working: true
+        agent: "testing"
+        comment: |
+          ✅ VERIFIED - NO "Skip Verification", "Skip for now", or similar bypass buttons found in the OTP flow.
 
   - task: "BusinessSetupPage smoother handoff"
     implemented: true
-    working: "NA"
+    working: false
     file: "frontend/src/pages/BusinessSetupPage.js"
-    stuck_count: 0
-    priority: "medium"
+    stuck_count: 1
+    priority: "CRITICAL"
     needs_retesting: false
     status_history:
       - working: "NA"
         agent: "main"
         comment: |
           Removed jarring window.location.reload(). After /business/setup, refetches /auth/me, updates auth storage via setAuthToken with fresh user (setup_completed=true), then navigates to dashboard.
+      - working: false
+        agent: "testing"
+        comment: |
+          ❌ CRITICAL BUG FOUND - Navigation from /setup to /dashboard is BROKEN
+          
+          E2E Test Results (Steps 12-16):
+          ✅ Step 12: Business Setup page loaded successfully
+          ✅ Step 13-14: Business setup form filled (restaurant name, phone, address)
+          ✅ Step 15: Form submitted, API call succeeded
+          ✅ Toast message appeared: "🎉 Business setup complete! Taking you to your dashboard…"
+          ❌ Step 16: **NAVIGATION FAILED** - User stayed on /setup page
+          
+          ROOT CAUSE ANALYSIS:
+          - BusinessSetupPage.js lines 111-116: Navigation wrapped in setTimeout(() => navigate('/dashboard'), 400)
+          - Toast message appears (line 111) ✓
+          - But navigate() call (line 115) is NOT executing ✗
+          - User sees success message but stays on /setup page
+          - This creates confusion and breaks the onboarding flow
+          
+          IMPACT: HIGH
+          - Users complete business setup but don't reach dashboard
+          - Success toast appears but nothing happens
+          - Users may think the app is broken or try to submit again
+          
+          POSSIBLE CAUSES:
+          1. Component unmounting before setTimeout executes
+          2. navigate() function being blocked or failing silently
+          3. React Router navigation issue
+          4. Missing dependency in useEffect or callback
+          
+          RECOMMENDATION:
+          - Remove setTimeout wrapper and call navigate() directly after setAuthToken
+          - OR use await page.waitForNavigation() pattern
+          - OR add error handling around navigate() call
+          - Test the navigation thoroughly after fix
 
 metadata:
   created_by: "main_agent"
@@ -392,8 +459,9 @@ metadata:
 
 test_plan:
   current_focus:
-    - "AdSense revenue leak fix (blog ads)"
-  stuck_tasks: []
+    - "BusinessSetupPage smoother handoff"
+  stuck_tasks:
+    - "BusinessSetupPage smoother handoff"
   test_all: false
   test_priority: "high_first"
 
@@ -478,6 +546,41 @@ agent_communication:
       ✓ Meta tag <meta name="google-adsense-account" content="ca-pub-3519568544880293"> present in <head>
       ✓ AdSense script with correct attributes present in <head>
       ✓ 27 ad placeholders found on /blog page (DEV mode)
+  - agent: "testing"
+    message: |
+      🎉 FULL E2E USER RETENTION TEST COMPLETED
+      
+      Tested complete flow: Sign Up → OTP → Auto-Login → Business Setup → Dashboard
+      
+      ✅ CRITICAL FIX VERIFIED - AUTO-LOGIN WORKING:
+      - User signs up with email/password
+      - OTP sent and retrieved from MongoDB successfully
+      - After OTP verification, user is auto-logged in and navigated to /setup
+      - User is NOT bounced back to /login (main retention leak FIXED)
+      - No "Skip Verification" bypass button exists
+      
+      ❌ CRITICAL BUG FOUND - BUSINESS SETUP NAVIGATION BROKEN:
+      - Business setup form fills and submits successfully
+      - API call succeeds (toast: "Business setup complete! Taking you to your dashboard…")
+      - BUT navigation from /setup to /dashboard does NOT happen
+      - User stays on /setup page despite success message
+      - This breaks the onboarding flow and creates user confusion
+      
+      ROOT CAUSE:
+      - BusinessSetupPage.js line 114-116: setTimeout(() => navigate('/dashboard'), 400)
+      - Toast appears but navigate() call is not executing
+      - Possible causes: component unmounting, navigate() blocked, or React Router issue
+      
+      IMPACT:
+      - Main retention leak (OTP → login bounce) is FIXED ✅
+      - New issue: Users complete setup but don't reach dashboard ❌
+      - This is a CRITICAL blocker for the onboarding flow
+      
+      RECOMMENDATION:
+      - Fix navigate() call in BusinessSetupPage.js handleSubmit function
+      - Remove setTimeout wrapper or add error handling
+      - Test navigation thoroughly after fix
+
       ✓ 16 ad placeholders found on blog detail page
       ✓ No ad placeholders on non-blog pages (/login)
       ✓ No console errors related to AdSense

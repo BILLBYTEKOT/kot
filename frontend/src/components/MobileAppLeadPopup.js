@@ -30,7 +30,7 @@ const MobileAppLeadPopup = ({ isOpen, onClose }) => {
     setLoading(true);
 
     try {
-      await axios.post(`${process.env.REACT_APP_BACKEND_URL || 'https://restro-ai.onrender.com'}/api/leads`, {
+      await axios.post(`${process.env.REACT_APP_BACKEND_URL || window.location.origin}/api/leads`, {
         ...formData,
         source: "play_store_download",
         timestamp: new Date().toISOString(),

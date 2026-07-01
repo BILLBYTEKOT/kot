@@ -9,7 +9,7 @@ import { toast, Toaster } from 'sonner';
 import { ShoppingCart, Plus, Minus, X, CreditCard, Banknote, Smartphone, ChefHat, Search } from 'lucide-react';
 import ValidationAlert from '../components/ValidationAlert';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'https://restro-ai.onrender.com';
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || window.location.origin;
 
 const CustomerOrderPage = () => {
   const { orgId } = useParams();

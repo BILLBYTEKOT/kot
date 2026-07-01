@@ -112,7 +112,7 @@ const LeadCapturePopup = () => {
     try {
       // Only submit lead if user provided at least email or phone
       if (formData.email || formData.phone) {
-        await axios.post(`${process.env.REACT_APP_BACKEND_URL || 'https://restro-ai.onrender.com'}/api/leads`, {
+        await axios.post(`${process.env.REACT_APP_BACKEND_URL || window.location.origin}/api/leads`, {
           ...formData,
           source: "landing_page_popup",
           timestamp: new Date().toISOString(),

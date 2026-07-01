@@ -88,7 +88,12 @@ const ElectronNavigator = () => {
   return null;
 };
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'https://restro-ai.onrender.com';
+// CRITICAL: never fall back to a hardcoded production URL. If the env is missing,
+// use the current origin (works for both preview and prod) instead of pointing at
+// a stale deploy that could leak data or serve outdated APIs.
+const BACKEND_URL =
+  process.env.REACT_APP_BACKEND_URL ||
+  (typeof window !== 'undefined' ? window.location.origin : '');
 export const API = `${BACKEND_URL}/api`;
 
 // Robust storage helper that uses multiple storage mechanisms
@@ -629,10 +634,15 @@ function App() {
     lazyImageLoader.init()
     console.log('📸 Lazy image loader initialized')
     
-    // Prefetch critical resources
-    ResourcePrefetcher.prefetchDNS('restro-ai.onrender.com')
-    ResourcePrefetcher.preconnect('restro-ai.onrender.com')
-    console.log('🔗 Resource prefetching enabled')
+    // Prefetch critical resources — use the actual backend host from env, not a hardcoded stale URL
+    try {
+      const beHost = new URL(process.env.REACT_APP_BACKEND_URL || window.location.origin).hostname;
+      ResourcePrefetcher.prefetchDNS(beHost);
+      ResourcePrefetcher.preconnect(beHost);
+      console.log('🔗 Resource prefetching enabled for', beHost);
+    } catch (e) {
+      console.log('🔗 Resource prefetching skipped');
+    }
     
     // Initialize Service Worker Manager
     ServiceWorkerManager.register()

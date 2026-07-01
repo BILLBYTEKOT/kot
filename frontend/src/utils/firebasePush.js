@@ -12,7 +12,7 @@
 
 import axios from 'axios';
 
-const API = process.env.REACT_APP_API_URL || 'https://restro-ai.onrender.com/api';
+const API = process.env.REACT_APP_API_URL || (window.location.origin + '/api');
 
 // Firebase config from environment
 const FIREBASE_CONFIG = {
