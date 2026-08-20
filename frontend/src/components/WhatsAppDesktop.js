@@ -64,8 +64,8 @@ const WhatsAppDesktop = ({ isElectron: isElectronProp }) => {
     },
     {
       title: 'Order Confirmation',
-      templateName: 'bill_confirmation',
-      description: 'Approved utility template for order or bill confirmation.',
+      templateName: 'order',
+      description: 'Approved utility template for order confirmation.',
       buildParams: ({ customerName: name, orderId, amount }) => [name || 'Customer', orderId || 'ORDER001', amount || 'INR 0.00']
     },
     {
@@ -76,14 +76,14 @@ const WhatsAppDesktop = ({ isElectron: isElectronProp }) => {
     },
     {
       title: 'Payment Receipt',
-      templateName: 'payment_receipt',
+      templateName: 'payment_receipt_with_in',
       description: 'Approved utility template for completed or paid orders.',
       buildParams: ({ restaurantName: name, orderId, amount }) => [name || 'Restaurant', orderId || 'ORDER001', amount || 'INR 0.00']
     },
     {
-      title: 'Payment Reminder',
-      templateName: 'bill_confirmation',
-      description: 'Use your approved bill template instead of freeform reminders.',
+      title: 'Purchase Receipt',
+      templateName: 'purchase_receipt_3',
+      description: 'Approved utility template for purchase receipt messaging.',
       buildParams: ({ customerName: name, orderId, amount }) => [name || 'Customer', orderId || 'ORDER001', amount || 'INR 0.00']
     }
   ];
