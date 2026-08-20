@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Electron API Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 40px;
+            background: #f5f5f5;
+        }
+        .test-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .success { color: green; }
+        .error { color: red; }
+        button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔧 Electron API Test Page</h1>
+    
+    <div class="test-card">
+        <h2>Environment Check</h2>
+        <p id="electron-check"></p>
+        <p id="api-check"></p>
+        <p id="whatsapp-check"></p>
+    </div>
+
+    <div class="test-card">
+        <h2>WhatsApp Functions</h2>
+        <button onclick="testOpenWhatsApp()">Test: Open WhatsApp Web</button>
+        <button onclick="testGetStatus()">Test: Get WhatsApp Status</button>
+        <p id="test-result"></p>
+    </div>
+
+    <div class="test-card">
+        <h2>Console Logs</h2>
+        <pre id="console-logs" style="background: #f0f0f0; padding: 10px; border-radius: 4px; max-height: 300px; overflow-y: auto;"></pre>
+    </div>
+
+    <script>
+        const log = (message) => {
+            const logs = document.getElementById('console-logs');
+            logs.textContent += new Date().toLocaleTimeString() + ': ' + message + '\n';
+            console.log(message);
+        };
+
+        // Check environment
+        const isElectron = typeof window.electronAPI !== 'undefined';
+        document.getElementById('electron-check').innerHTML = isElectron 
+            ? '<span class="success">✅ Running in Electron</span>'
+            : '<span class="error">❌ Not in Electron (web browser)</span>';
+
+        document.getElementById('api-check').innerHTML = window.electronAPI 
+            ? '<span class="success">✅ electronAPI is available</span>'
+            : '<span class="error">❌ electronAPI is NOT available</span>';
+
+        document.getElementById('whatsapp-check').innerHTML = window.electronAPI?.openWhatsAppWeb
+            ? '<span class="success">✅ openWhatsAppWeb function exists</span>'
+            : '<span class="error">❌ openWhatsAppWeb function NOT found</span>';
+
+        log('Page loaded');
+        log('isElectron: ' + isElectron);
+        log('electronAPI: ' + (window.electronAPI ? 'Available' : 'Not available'));
+        
+        if (window.electronAPI) {
+            log('Available functions: ' + Object.keys(window.electronAPI).join(', '));
+        }
+
+        function testOpenWhatsApp() {
+            log('Testing openWhatsAppWeb...');
+            const result = document.getElementById('test-result');
+            
+            if (window.electronAPI?.openWhatsAppWeb) {
+                try {
+                    window.electronAPI.openWhatsAppWeb();
+                    result.innerHTML = '<span class="success">✅ WhatsApp Web opened!</span>';
+                    log('SUCCESS: WhatsApp Web opened');
+                } catch (error) {
+                    result.innerHTML = '<span class="error">❌ Error: ' + error.message + '</span>';
+                    log('ERROR: ' + error.message);
+                }
+            } else {
+                result.innerHTML = '<span class="error">❌ electronAPI.openWhatsAppWeb not available</span>';
+                log('ERROR: Function not available');
+            }
+        }
+
+        async function testGetStatus() {
+            log('Testing getWhatsAppStatus...');
+            const result = document.getElementById('test-result');
+            
+            if (window.electronAPI?.getWhatsAppStatus) {
+                try {
+                    const status = await window.electronAPI.getWhatsAppStatus();
+                    result.innerHTML = '<span class="success">✅ Status: ' + JSON.stringify(status) + '</span>';
+                    log('SUCCESS: Got status - ' + JSON.stringify(status));
+                } catch (error) {
+                    result.innerHTML = '<span class="error">❌ Error: ' + error.message + '</span>';
+                    log('ERROR: ' + error.message);
+                }
+            } else {
+                result.innerHTML = '<span class="error">❌ electronAPI.getWhatsAppStatus not available</span>';
+                log('ERROR: Function not available');
+            }
+        }
+    </script>
+</body>
+</html>

@@ -61,6 +61,7 @@ import DesktopInfo from './components/DesktopInfo';
 import { Toaster } from './components/ui/sonner';
 import { setupAutoSync } from './utils/offlineSync';
 import { startNotificationPolling, requestNotificationPermission } from './utils/pushNotifications';
+import { rewriteRequestUrl } from './utils/backendRouter';
 
 // Reduce noisy logs in production by default.
 // Set localStorage.DEBUG_LOGS = 'true' to re-enable console logs.
@@ -88,13 +89,12 @@ const ElectronNavigator = () => {
   return null;
 };
 
-// CRITICAL: never fall back to a hardcoded production URL. If the env is missing,
-// use the current origin (works for both preview and prod) instead of pointing at
-// a stale deploy that could leak data or serve outdated APIs.
-const BACKEND_URL =
-  process.env.REACT_APP_BACKEND_URL ||
-  (typeof window !== 'undefined' ? window.location.origin : '');
-export const API = `${BACKEND_URL}/api`;
+// During local development, prefer the running backend on port 10000 so the UI
+// can authenticate and exercise features against the same server that is launched here.
+const BACKEND_URL = 'http://127.0.0.1:10000';
+const LOCAL_BACKEND_URL = 'http://127.0.0.1:10000';
+export const API = `${BACKEND_URL || LOCAL_BACKEND_URL}/api`;
+export const SUPER_ADMIN_API_PREFIX = '/api/super-admin';
 
 // Robust storage helper that uses multiple storage mechanisms
 const AUTH_STORAGE_KEY = 'billbytekot_auth';
@@ -351,6 +351,12 @@ axios.interceptors.request.use(
     const token = getStoredToken();
     if (token && !config.headers.Authorization) {
       config.headers.Authorization = `Bearer ${token}`;
+    }
+
+    // Route super-admin traffic across the render backend pool so one overloaded
+    // instance does not become the single choke point for all admin activity.
+    if (config.url?.includes(SUPER_ADMIN_API_PREFIX)) {
+      config.url = rewriteRequestUrl(config.url);
     }
     
     // Add timestamp to prevent caching issues
