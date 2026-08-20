@@ -1,16 +1,44 @@
 #!/usr/bin/env python3
 """
 WhatsApp Template Emergency Checker
-
+ 
 Quick utility to check which templates are safe to use outside 24-hour window.
 Run this to identify which templates will work for business-initiated messaging.
 """
 
-import sys
+import argparse
+import asyncio
 import os
+import sys
+
 sys.path.append(os.path.dirname(__file__))
 
 from whatsapp_cloud_api import WhatsAppCloudAPI
+
+
+async def list_meta_templates(approved_only: bool = False, language: str = None):
+    """Fetch template catalog from Meta Business Manager for review and config setup."""
+    api = WhatsAppCloudAPI()
+    if not api.is_configured():
+        raise SystemExit(
+            "Set WHATSAPP_PHONE_NUMBER_ID, WHATSAPP_BUSINESS_ACCOUNT_ID and WHATSAPP_ACCESS_TOKEN before listing Meta templates."
+        )
+
+    templates = await api.list_all_templates(approved_only=approved_only, language_code=language)
+    if not templates:
+        print("No templates were returned by Meta for the current account.")
+        return
+
+    print(f"Found {len(templates)} templates {'(approved only)' if approved_only else ''}")
+    print("=" * 80)
+    for template in templates:
+        print(
+            f"{template['template_name']} | "
+            f"lang={template['language_code']} | "
+            f"status={template['approval_status']} | "
+            f"category={template['meta_category']} | "
+            f"can_send_outside_window={template['can_send_outside_window']}"
+        )
 
 
 def check_templates():
@@ -92,5 +120,21 @@ def check_templates():
     print("   - Monitor logs for 131047/131026 errors")
 
 
+def parse_args():
+    parser = argparse.ArgumentParser(description="Inspect WhatsApp Meta templates and their 24h-window restrictions.")
+    parser.add_argument("--all", action="store_true", help="List all Meta templates for the connected business account.")
+    parser.add_argument("--approved-only", action="store_true", help="List only approved templates.")
+    parser.add_argument("--language", default=None, help="Optional Meta template language (example: en_US).")
+    return parser.parse_args()
+
+
 if __name__ == "__main__":
-    check_templates()
+    args = parse_args()
+    if args.all or args.approved_only:
+        try:
+            asyncio.run(list_meta_templates(approved_only=args.approved_only, language=args.language))
+        except SystemExit as exc:
+            print(exc)
+            raise
+    else:
+        check_templates()

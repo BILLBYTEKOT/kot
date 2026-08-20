@@ -1,5 +1,5 @@
 """
-WhatsApp Cloud API Client — BillByteKOT
+WhatsApp Cloud API Client  BillByteKOT
 Sends messages via Meta WhatsApp Business API (Cloud API).
 No wa.me redirects. Cloud API only.
 """
@@ -38,16 +38,16 @@ class WhatsAppCloudAPI:
         self.access_token = os.getenv("WHATSAPP_ACCESS_TOKEN", "")
         self.api_version = os.getenv("WHATSAPP_API_VERSION", "v18.0")
         self.base_url = f"https://graph.facebook.com/{self.api_version}"
-        self.template_name = os.getenv("WHATSAPP_TEMPLATE_NAME", "").strip()
+        self.template_name = os.getenv("WHATSAPP_TEMPLATE_NAME", "order").strip()
         self.template_lang = os.getenv("WHATSAPP_TEMPLATE_LANG", "en_US").strip()
-        # Transactional templates (defaults match approved names)
-        self.template_bill_confirmation = os.getenv("WHATSAPP_TEMPLATE_BILL_CONFIRMATION", "bill_confirmation").strip()
+        # Use the actual Meta-approved utility templates from the business account.
+        self.template_bill_confirmation = os.getenv("WHATSAPP_TEMPLATE_BILL_CONFIRMATION", "payment_receipt_with_in").strip()
         self.template_bill_uses_receipt_url = os.getenv("WHATSAPP_TEMPLATE_BILL_USES_RECEIPT_URL", "false").strip().lower() in ("1", "true", "yes", "on")
         self.template_bill_use_url_button = os.getenv("WHATSAPP_TEMPLATE_BILL_USE_URL_BUTTON", "false").strip().lower() in ("1", "true", "yes", "on")
-        self.template_status_pending = os.getenv("WHATSAPP_TEMPLATE_STATUS_PENDING", "order_pending").strip()
+        self.template_status_pending = os.getenv("WHATSAPP_TEMPLATE_STATUS_PENDING", "order").strip()
         self.template_status_preparing = os.getenv("WHATSAPP_TEMPLATE_STATUS_PREPARING", "order_preparing").strip()
         self.template_status_ready = os.getenv("WHATSAPP_TEMPLATE_STATUS_READY", "order_ready").strip()
-        self.template_status_completed = os.getenv("WHATSAPP_TEMPLATE_STATUS_COMPLETED", "payment_receipt").strip()
+        self.template_status_completed = os.getenv("WHATSAPP_TEMPLATE_STATUS_COMPLETED", "order_completed").strip()
         self.template_status_cancelled = os.getenv("WHATSAPP_TEMPLATE_STATUS_CANCELLED", "").strip()
         self._log_template_configuration()
 
@@ -84,7 +84,7 @@ class WhatsAppCloudAPI:
         
         # EMERGENCY SAFETY CHECK: Warn if template is risky
         if configured_template and not self._is_utility_template(configured_template):
-            print(f"⚠️ EMERGENCY WARNING: Status template '{configured_template}' for '{status}' may be risky")
+            print(f" EMERGENCY WARNING: Status template '{configured_template}' for '{status}' may be risky")
             print(f"   This may fail outside 24-hour customer service window")
             # Don't override status templates as they have specific meanings
             # But provide clear warning
@@ -97,7 +97,7 @@ class WhatsAppCloudAPI:
         
         # EMERGENCY OVERRIDE: Force safe template if configured template is risky
         if not self._is_utility_template(configured_template):
-            print(f"🚨 EMERGENCY OVERRIDE: Bill template '{configured_template}' is risky")
+            print(f" EMERGENCY OVERRIDE: Bill template '{configured_template}' is risky")
             print(f"   Forcing use of 'payment_receipt' (verified UTILITY template)")
             return "payment_receipt"
         
@@ -114,13 +114,13 @@ class WhatsAppCloudAPI:
             template_category = validation_result["category"]
             validation_source = validation_result["source"]
             
-            print(f"🔍 Bill template validation: {configured_template}")
+            print(f" Bill template validation: {configured_template}")
             print(f"   Category: {template_category} | Source: {validation_source}")
             print(f"   Can send outside window: {is_utility}")
             
             # EMERGENCY OVERRIDE: Force safe template if configured template is risky
             if not is_utility:
-                print(f"🚨 EMERGENCY OVERRIDE: Bill template '{configured_template}' is not UTILITY")
+                print(f" EMERGENCY OVERRIDE: Bill template '{configured_template}' is not UTILITY")
                 print(f"   Category: {template_category} (Meta validation: {validation_source})")
                 print(f"   Forcing use of 'payment_receipt' (fallback UTILITY template)")
                 return "payment_receipt"
@@ -128,12 +128,12 @@ class WhatsAppCloudAPI:
             return configured_template
             
         except Exception as e:
-            print(f"⚠️ Meta API validation failed for bill template '{configured_template}': {e}")
+            print(f" Meta API validation failed for bill template '{configured_template}': {e}")
             print(f"   Falling back to name-pattern validation")
             
             # Fallback to original logic
             if not self._is_utility_template(configured_template):
-                print(f"🚨 EMERGENCY OVERRIDE: Bill template '{configured_template}' is risky (name-pattern check)")
+                print(f" EMERGENCY OVERRIDE: Bill template '{configured_template}' is risky (name-pattern check)")
                 print(f"   Forcing use of 'payment_receipt' (verified UTILITY template)")
                 return "payment_receipt"
             
@@ -147,21 +147,34 @@ class WhatsAppCloudAPI:
         
         EMERGENCY FIX: More conservative validation to prevent 24h window errors
         """
-        # More conservative utility template patterns - only truly transactional templates
+        # Meta-approved utility templates observed in the actual business account.
+        # Keep this list aligned with the approved template names in Meta Business Manager.
         strict_utility_patterns = [
-            "payment_receipt", "order_preparing", "order_ready", "order_completed"
+            "payment_receipt",
+            "payment_receipt_with_in",
+            "purchase_receipt_3",
+            "order",
+            "order_preparing",
+            "order_ready",
+            "order_completed",
+            "hello_world",
         ]
         
-        # Templates that might contain marketing content (be more cautious)
+        # Templates that are typically marketing or non-transactional.
         potentially_marketing = [
-            "bill_confirmation"  # Often contains promotional content
+            "bill_confirmation",
+            "promo",
+            "offer",
+            "discount",
+            "sale",
+            "campaign"
         ]
         
         template_lower = template_name.lower()
         
         # If template might be marketing, be conservative
         if any(pattern in template_lower for pattern in potentially_marketing):
-            print(f"⚠️ CONSERVATIVE: Template '{template_name}' may contain marketing content")
+            print(f" CONSERVATIVE: Template '{template_name}' may contain marketing content")
             print(f"   Treating as potentially MARKETING to avoid 24h window errors")
             return False
         
@@ -169,7 +182,7 @@ class WhatsAppCloudAPI:
         is_utility = any(pattern in template_lower for pattern in strict_utility_patterns)
         
         if not is_utility:
-            print(f"⚠️ Template '{template_name}' not in strict UTILITY list")
+            print(f" Template '{template_name}' not in strict UTILITY list")
             print(f"   Strict UTILITY patterns: {strict_utility_patterns}")
         
         return is_utility
@@ -295,7 +308,7 @@ class WhatsAppCloudAPI:
         
         # Log normalization for debugging
         if phone != cleaned:
-            print(f"📞 Phone normalized: {phone} → {cleaned}")
+            print(f" Phone normalized: {phone}  {cleaned}")
         
         return cleaned
 
@@ -403,7 +416,7 @@ class WhatsAppCloudAPI:
         
         # Log warnings but don't fail
         for warning in verification["warnings"]:
-            print(f"⚠️ Phone validation warning: {warning}")
+            print(f" Phone validation warning: {warning}")
         
         return verification["normalized"]
 
@@ -461,7 +474,7 @@ class WhatsAppCloudAPI:
             #     result["can_store"] = False
             #     result["warnings"].append(f"Phone number {normalized} already exists for customer {existing.get('name', 'Unknown')}")
             
-            print(f"📞 Phone uniqueness check: {phone} → {normalized} (organization: {organization_id})")
+            print(f" Phone uniqueness check: {phone}  {normalized} (organization: {organization_id})")
             print(f"   Unique: {result['is_unique']} | Can store: {result['can_store']}")
             
         except ValueError as e:
@@ -480,7 +493,7 @@ class WhatsAppCloudAPI:
         # TODO: Implement proper customer service window checking
         # This would require checking when customer last messaged us
         # For now, return False to be conservative
-        print(f"⚠️ Customer service window check not implemented for {phone}")
+        print(f" Customer service window check not implemented for {phone}")
         print(f"   Assuming window is CLOSED - only UTILITY templates will work")
         return False
 
@@ -651,6 +664,94 @@ class WhatsAppCloudAPI:
             except Exception as e:
                 raise Exception(f"Failed to query Meta templates API: {e}")
 
+    @staticmethod
+    def _normalize_template_record(template: Dict[str, Any], language_code: Optional[str] = None) -> Dict[str, Any]:
+        """Normalize a Meta API template payload into a consistent internal format."""
+        name = (template.get("name") or template.get("template_name") or "").strip()
+        language = (template.get("language") or template.get("language_code") or language_code or "en_US").strip()
+        category = (template.get("category") or template.get("meta_category") or "").upper()
+        status = (template.get("status") or template.get("approval_status") or "").upper()
+        is_approved = status == "APPROVED"
+        return {
+            "template_id": template.get("id") or template.get("template_id"),
+            "template_name": name,
+            "language_code": language,
+            "status": status.lower() if status else "unknown",
+            "category": category,
+            "meta_category": category,
+            "approval_status": status,
+            "quality_score": template.get("quality_score"),
+            "components": template.get("components", []),
+            "last_verified": datetime.now(timezone.utc),
+            "can_send_outside_window": is_approved and category == "UTILITY",
+        }
+
+    async def list_all_templates(self, approved_only: bool = False, language_code: Optional[str] = None) -> List[Dict[str, Any]]:
+        """List templates from Meta Business Manager, optionally filtered to approved ones.
+
+        This is useful when you need the full set of Meta-approved templates to compare with
+        the templates configured in your app or to add the correct names into Meta/ENV config.
+        """
+        if not self.access_token:
+            raise ValueError("WhatsApp access token not configured for Meta API queries")
+
+        waba_id = os.getenv("WHATSAPP_BUSINESS_ACCOUNT_ID", "")
+        if not waba_id:
+            if "_" in self.phone_number_id:
+                waba_id = self.phone_number_id.split("_")[0]
+            else:
+                waba_id = self.phone_number_id
+
+        if not waba_id:
+            raise ValueError("WHATSAPP_BUSINESS_ACCOUNT_ID is required to query Meta template catalog")
+
+        url = f"{self.base_url}/{waba_id}/message_templates"
+        headers = {
+            "Authorization": f"Bearer {self.access_token}",
+            "Content-Type": "application/json",
+        }
+        params = {"fields": "id,name,status,category,language,quality_score,components"}
+        if language_code:
+            params["language"] = language_code
+
+        all_templates: List[Dict[str, Any]] = []
+        request_url = url
+        request_params = params
+
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            while True:
+                response = await client.get(request_url, headers=headers, params=request_params)
+                response.raise_for_status()
+                payload = response.json()
+                for template in payload.get("data", []):
+                    normalized = self._normalize_template_record(template, language_code=language_code)
+                    if approved_only and normalized["approval_status"] != "APPROVED":
+                        continue
+                    all_templates.append(normalized)
+
+                paging = payload.get("paging", {})
+                next_url = paging.get("next") if isinstance(paging, dict) else None
+                if not next_url:
+                    break
+                request_url = next_url
+                request_params = None
+
+        all_templates.sort(key=lambda item: (item["template_name"], item["language_code"]))
+        return all_templates
+
+    async def get_all_templates(self, approved_only: bool = False, language_code: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Compatibility wrapper for template catalog queries."""
+        return await self.list_all_templates(approved_only=approved_only, language_code=language_code)
+
+    async def list_approved_templates(self, language_code: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Return all approved Meta templates, with any marketing templates excluded."""
+        return await self.list_all_templates(approved_only=True, language_code=language_code)
+
+    async def get_all_template_names(self, approved_only: bool = False, language_code: Optional[str] = None) -> List[str]:
+        """Return template names only."""
+        templates = await self.list_all_templates(approved_only=approved_only, language_code=language_code)
+        return [template["template_name"] for template in templates]
+
     async def _get_cached_template_info(self, template_name: str, language_code: str) -> Optional[WhatsAppTemplate]:
         """
         Get cached template information from database.
@@ -658,7 +759,7 @@ class WhatsAppCloudAPI:
         Args:
             template_name: Template name to look up
             language_code: Language code for the template
-            
+             
         Returns:
             WhatsAppTemplate model if found, None otherwise
         """
@@ -666,7 +767,7 @@ class WhatsAppCloudAPI:
             # This is a placeholder for database integration
             # In a real implementation, this would query MongoDB/database
             # For now, we'll return None to force Meta API queries
-            
+             
             # TODO: Implement actual database query
             # Example:
             # from database import get_database
@@ -677,7 +778,7 @@ class WhatsAppCloudAPI:
             # })
             # if template_doc:
             #     return WhatsAppTemplate(**template_doc)
-            
+             
             logging.debug(f"Cache lookup for {template_name} (language: {language_code}) - not implemented")
             return None
             
@@ -859,9 +960,9 @@ class WhatsAppCloudAPI:
         # Log validation results
         if verification["warnings"]:
             for warning in verification["warnings"]:
-                print(f"⚠️ Phone validation warning for {to_phone}: {warning}")
+                print(f" Phone validation warning for {to_phone}: {warning}")
         
-        print(f"📞 Phone validation passed: {to_phone} → {phone} (source: {verification['format_source']})")
+        print(f" Phone validation passed: {to_phone}  {phone} (source: {verification['format_source']})")
 
         payload = {
             "messaging_product": "whatsapp",
@@ -872,7 +973,7 @@ class WhatsAppCloudAPI:
         }
         result = await self._post(payload)
         msg_id = result.get("messages", [{}])[0].get("id", "")
-        print(f"✅ WA sent | to={phone} | msg_id={msg_id}")
+        print(f" WA sent | to={phone} | msg_id={msg_id}")
         return result
 
     async def send_template_message(
@@ -900,9 +1001,9 @@ class WhatsAppCloudAPI:
         # Log validation results
         if verification["warnings"]:
             for warning in verification["warnings"]:
-                print(f"⚠️ Phone validation warning for {to_phone}: {warning}")
+                print(f" Phone validation warning for {to_phone}: {warning}")
         
-        print(f"📞 Phone validation passed: {to_phone} → {phone} (source: {verification['format_source']})")
+        print(f" Phone validation passed: {to_phone}  {phone} (source: {verification['format_source']})")
 
         # ENHANCED FIX: Use Meta API validation instead of name patterns
         validation_result = await self.validate_template_category(template_name, language)
@@ -916,11 +1017,11 @@ class WhatsAppCloudAPI:
         window_open = await self.check_customer_service_window(phone)
 
         # Enhanced logging with Meta API validation results
-        print(f"📨 WA template prep | to={phone} | template={template_name} | params_count={len(params)} | params={params}")
-        print(f"🕐 Customer service window open: {window_open}")
-        print(f"🏷️ Template category: {template_category} (status: {template_status})")
-        print(f"🔍 Validation source: {validation_source}")
-        print(f"✅ Can send outside window: {can_send_outside_window}")
+        print(f" WA template prep | to={phone} | template={template_name} | params_count={len(params)} | params={params}")
+        print(f" Customer service window open: {window_open}")
+        print(f" Template category: {template_category} (status: {template_status})")
+        print(f" Validation source: {validation_source}")
+        print(f" Can send outside window: {can_send_outside_window}")
         
         # Enhanced validation with specific error messages
         if not window_open and not can_send_outside_window:
@@ -932,20 +1033,20 @@ class WhatsAppCloudAPI:
             elif validation_source == "emergency_fallback":
                 error_msg += f" (Emergency fallback due to error: {validation_result.get('error', 'unknown')})"
             
-            print(f"🚨 CRITICAL: {error_msg}")
+            print(f" CRITICAL: {error_msg}")
             print(f"   This will likely fail with 131047/131026 error")
             print(f"   Solutions:")
             print(f"   1. Wait for customer to message first (opens 24h window)")
             print(f"   2. Use a verified UTILITY template")
             print(f"   3. Check template category in Meta Business Manager")
         elif window_open:
-            print(f"✅ Customer service window is open - any approved template should work")
+            print(f" Customer service window is open - any approved template should work")
         elif can_send_outside_window:
-            print(f"✅ Template is verified UTILITY category - should work outside 24h window")
+            print(f" Template is verified UTILITY category - should work outside 24h window")
         
         # Warning for fallback validation
         if validation_source in ["fallback", "emergency_fallback"]:
-            print(f"⚠️ WARNING: Using {validation_source} validation for template '{template_name}'")
+            print(f" WARNING: Using {validation_source} validation for template '{template_name}'")
             print(f"   Meta API verification failed - results may be inaccurate")
             print(f"   Check Meta Business Manager for actual template category")
             if "warning" in validation_result:
@@ -955,12 +1056,12 @@ class WhatsAppCloudAPI:
 
         # Legacy warning (kept for backward compatibility)
         if not is_utility:
-            print(f"⚠️ WARNING: Template '{template_name}' is not UTILITY category!")
+            print(f" WARNING: Template '{template_name}' is not UTILITY category!")
             print(f"   Category: {template_category} | Status: {template_status}")
             print(f"   Only UTILITY templates work outside 24h window. MARKETING templates require 24h.")
             print(f"   Check Meta Business Manager: Template must be category=UTILITY and status=APPROVED")
         else:
-            print(f"✅ Template '{template_name}' is verified UTILITY category - should work outside 24h window")
+            print(f" Template '{template_name}' is verified UTILITY category - should work outside 24h window")
 
         components = [{
             "type": "body",
@@ -988,14 +1089,14 @@ class WhatsAppCloudAPI:
             "template": template_obj
         }
 
-        print(f"📦 Payload: {json.dumps(payload, indent=2)}")
+        print(f" Payload: {json.dumps(payload, indent=2)}")
 
         last_error = None
         for attempt in range(self.MAX_RETRY_ATTEMPTS):
             try:
                 result = await self._post(payload)
                 msg_id = result.get("messages", [{}])[0].get("id", "")
-                print(f"✅ WA template sent | to={phone} | template={template_name} | params={len(params)} | msg_id={msg_id}")
+                print(f" WA template sent | to={phone} | template={template_name} | params={len(params)} | msg_id={msg_id}")
                 return result
 
             except Exception as e:
@@ -1015,25 +1116,25 @@ class WhatsAppCloudAPI:
                 is_retryable = classification.get("is_retryable")
 
                 print(
-                    f"❌ WA template failed | to={phone} | template={template_name} | "
+                    f" WA template failed | to={phone} | template={template_name} | "
                     f"error_code={error_code} | attempt={attempt + 1}/{self.MAX_RETRY_ATTEMPTS} | "
                     f"retryable={is_retryable} | error={error_msg}"
                 )
 
                 if error_code in {131047, 131026}:
                     print("\n" + "=" * 60)
-                    print("🚨 24-HOUR MESSAGING WINDOW RESTRICTION (Error 131047/131026)")
+                    print(" 24-HOUR MESSAGING WINDOW RESTRICTION (Error 131047/131026)")
                     print("=" * 60)
                     print(f"Template: {template_name}")
-                    print(f"Parameters Sent: {len(params)} → {params}")
+                    print(f"Parameters Sent: {len(params)}  {params}")
                     print(f"Meta API Validation:")
                     print(f"  - Category: {template_category}")
                     print(f"  - Status: {template_status}")
                     print(f"  - Can send outside window: {can_send_outside_window}")
                     print(f"  - Validation source: {validation_source}")
                     if validation_source in ["fallback", "emergency_fallback"]:
-                        print(f"  - ⚠️ Meta API verification failed - using fallback validation")
-                    print("\n💡 ROOT CAUSE ANALYSIS:")
+                        print(f"  -  Meta API verification failed - using fallback validation")
+                    print("\n ROOT CAUSE ANALYSIS:")
                     if template_category == "MARKETING":
                         print("- Template is classified as MARKETING by Meta (not UTILITY)")
                         print("- MARKETING templates require 24-hour customer service window")
@@ -1044,7 +1145,7 @@ class WhatsAppCloudAPI:
                         print("- Template validation failed despite appearing to be UTILITY")
                         print("- Check Meta Business Manager for actual approval status")
                     print("- Customer must message you first to open the window")
-                    print("\n🔧 IMMEDIATE SOLUTIONS:")
+                    print("\n IMMEDIATE SOLUTIONS:")
                     print("- Use only verified UTILITY templates (check Meta Business Manager)")
                     print("- Verify template is APPROVED status in Meta Business Manager")
                     print("- Wait for customer to message you first, then respond within 24 hours")
@@ -1057,41 +1158,41 @@ class WhatsAppCloudAPI:
                     break
                 elif error_code in {131031, 132001}:
                     print("\n" + "=" * 60)
-                    print("🚨 INVALID TEMPLATE NAME / LANGUAGE (Error 131031/132001)")
+                    print(" INVALID TEMPLATE NAME / LANGUAGE (Error 131031/132001)")
                     print("=" * 60)
                     print(f"Template: '{template_name}' not found in the requested language or not approved")
-                    print("💡 SOLUTIONS:")
+                    print(" SOLUTIONS:")
                     print("1. Check exact template name in Meta Business Manager")
                     print("2. Ensure template is APPROVED and available in the requested language")
                     print("3. Check the language code matches the template translation exactly")
                     print("=" * 60 + "\n")
                 elif error_code == 131042:
                     print("\n" + "=" * 60)
-                    print("🚨 BUSINESS ELIGIBILITY PAYMENT ISSUE (Error 131042)")
+                    print(" BUSINESS ELIGIBILITY PAYMENT ISSUE (Error 131042)")
                     print("=" * 60)
                     print(f"WhatsApp Business Account has payment/billing issues")
-                    print("💡 CRITICAL SOLUTIONS:")
+                    print(" CRITICAL SOLUTIONS:")
                     print("1. Check Meta Business Manager for payment method issues")
                     print("2. Verify WhatsApp Business Account (WABA) is in good standing")
                     print("3. Check if there are outstanding payments or billing issues")
                     print("4. Contact Meta Business Support if payment method is valid")
                     print("5. Verify WABA has not been suspended or restricted")
-                    print("⚠️ This is a Meta account-level issue, not a template or code issue")
+                    print(" This is a Meta account-level issue, not a template or code issue")
                     print("=" * 60 + "\n")
                     
                     # Don't retry business eligibility errors - they won't succeed until account is fixed
                     break
 
                 if not is_retryable:
-                    print(f"⚠️ Permanent failure detected (error_code={error_code}), not retrying")
+                    print(f" Permanent failure detected (error_code={error_code}), not retrying")
                     raise
 
                 if attempt < self.MAX_RETRY_ATTEMPTS - 1:
                     delay = self.RETRY_DELAYS[attempt]
-                    print(f"⏳ Retrying in {delay}s...")
+                    print(f" Retrying in {delay}s...")
                     await asyncio.sleep(delay)
                 else:
-                    print(f"❌ Max retries ({self.MAX_RETRY_ATTEMPTS}) reached, giving up")
+                    print(f" Max retries ({self.MAX_RETRY_ATTEMPTS}) reached, giving up")
                     raise
 
         if last_error:
@@ -1122,7 +1223,7 @@ class WhatsAppCloudAPI:
         if receipt_url and self.template_bill_uses_receipt_url:
             body_params.append(receipt_url)
 
-        print(f"📧 ENHANCED FIX: Using Meta API validated template '{template_name}' for receipt to {to_phone}")
+        print(f" ENHANCED FIX: Using Meta API validated template '{template_name}' for receipt to {to_phone}")
         
         return await self.send_template_message(
             to_phone,
@@ -1154,24 +1255,24 @@ class WhatsAppCloudAPI:
             template_category = validation_result["category"]
             validation_source = validation_result["source"]
             
-            print(f"🔍 Status template validation: {template_name} (status: {status})")
+            print(f" Status template validation: {template_name} (status: {status})")
             print(f"   Category: {template_category} | Source: {validation_source}")
             print(f"   Can send outside window: {is_utility}")
             
             if not is_utility:
-                print(f"🚨 WARNING: Status template '{template_name}' for status '{status}' is not UTILITY")
+                print(f" WARNING: Status template '{template_name}' for status '{status}' is not UTILITY")
                 print(f"   Category: {template_category} (Meta validation: {validation_source})")
                 print(f"   This may fail outside 24-hour customer service window")
                 # Don't auto-replace status templates as they have specific meanings
                 # Just warn and proceed - user should fix template configuration
                 
         except Exception as e:
-            print(f"⚠️ Meta API validation failed for status template '{template_name}': {e}")
+            print(f" Meta API validation failed for status template '{template_name}': {e}")
             print(f"   Falling back to name-pattern validation")
             
             # Fallback to original logic
             if not self._is_utility_template(template_name):
-                print(f"🚨 WARNING: Status template '{template_name}' for status '{status}' is risky (name-pattern check)")
+                print(f" WARNING: Status template '{template_name}' for status '{status}' is risky (name-pattern check)")
                 print(f"   This may fail outside 24-hour customer service window")
 
         oid = str(order_id)[:8].upper()
@@ -1181,7 +1282,7 @@ class WhatsAppCloudAPI:
         if amount:
             params.append(amount)
 
-        print(f"📱 Sending order status '{status}' using template '{template_name}' to {to_phone}")
+        print(f" Sending order status '{status}' using template '{template_name}' to {to_phone}")
 
         return await self.send_template_message(
             to_phone,
@@ -1192,7 +1293,7 @@ class WhatsAppCloudAPI:
 
     async def send_otp(self, to_phone: str, otp: str, restaurant_name: str = "BillByteKOT") -> Dict[str, Any]:
         """Send OTP verification message."""
-        msg = f"🔐 *{restaurant_name}*\n\nYour verification code is:\n\n*{otp}*\n\nValid for 5 minutes. Do not share this code.\n\n_Powered by BillByteKOT_"
+        msg = f" *{restaurant_name}*\n\nYour verification code is:\n\n*{otp}*\n\nValid for 5 minutes. Do not share this code.\n\n_Powered by BillByteKOT_"
         return await self.send_text_message(to_phone, msg)
 
 
@@ -1206,21 +1307,21 @@ async def send_whatsapp_receipt(
     receipt_url: Optional[str] = None
 ) -> Dict[str, Any]:
     """Send receipt via WhatsApp Cloud API."""
-    print(f"🔍 EMERGENCY DEBUG: send_whatsapp_receipt called for phone {phone}")
+    print(f" EMERGENCY DEBUG: send_whatsapp_receipt called for phone {phone}")
     print(f"   Order ID: {order.get('id', 'unknown')}")
     print(f"   Receipt URL: {receipt_url}")
     
     try:
         result = await whatsapp_api.send_receipt(phone, order, business, receipt_url=receipt_url)
-        print(f"✅ EMERGENCY DEBUG: send_receipt succeeded for {phone}")
+        print(f" EMERGENCY DEBUG: send_receipt succeeded for {phone}")
         return result
     except Exception as e:
-        print(f"❌ EMERGENCY DEBUG: send_receipt failed for {phone}: {e}")
+        print(f" EMERGENCY DEBUG: send_receipt failed for {phone}: {e}")
         
         # Check if it's a 24-hour window error
         error_str = str(e)
         if "131047" in error_str or "131026" in error_str:
-            print(f"🚨 EMERGENCY DEBUG: 24-hour window error detected for {phone}")
+            print(f" EMERGENCY DEBUG: 24-hour window error detected for {phone}")
             print(f"   Error: {error_str}")
             print(f"   This confirms the template category issue")
         
@@ -1261,7 +1362,7 @@ async def test_whatsapp_connection() -> Dict[str, Any]:
         return {"success": False, "configured": True, "error": "Set WHATSAPP_TEST_PHONE to run connection test"}
 
     try:
-        result = await whatsapp_api.send_text_message(test_phone, "✅ WhatsApp Cloud API connection test successful!")
+        result = await whatsapp_api.send_text_message(test_phone, " WhatsApp Cloud API connection test successful!")
         return {
             "success": True,
             "configured": True,
@@ -1270,3 +1371,4 @@ async def test_whatsapp_connection() -> Dict[str, Any]:
         }
     except Exception as e:
         return {"success": False, "configured": True, "error": str(e)}
+
