@@ -1953,7 +1953,7 @@ const OrdersPage = ({ user }) => {
                     <ArrowLeft className="w-5 h-5" />
                   </button>
                   <div>
-                    <h1 className="text-lg font-bold">Add Items</h1>
+                    <h1 className="text-xl font-bold">Add Items</h1>
                     <p className="text-sm text-white/80">
                       {formData.table_id ? `Table ${tables.find(t => t.id === formData.table_id)?.table_number || ''}` : 'Counter Order'}
                       {formData.customer_name && ` • ${formData.customer_name}`}
@@ -1977,7 +1977,7 @@ const OrdersPage = ({ user }) => {
                   placeholder="Search items..."
                   value={menuSearch}
                   onChange={(e) => setMenuSearch(e.target.value)}
-                  className="pl-9 h-10 text-sm rounded-full border-gray-200 focus:border-violet-400 bg-gray-50 focus:bg-white"
+                  className="pl-9 h-11 text-base rounded-full border-gray-200 focus:border-violet-400 bg-gray-50 focus:bg-white"
                 />
                 {menuSearch && (
                   <button 
@@ -1993,7 +1993,7 @@ const OrdersPage = ({ user }) => {
                   <button
                     key={cat}
                     onClick={() => setActiveCategory(cat)}
-                    className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all whitespace-nowrap flex-shrink-0 ${
+                    className={`px-3 py-2 rounded-full text-sm font-medium transition-all whitespace-nowrap flex-shrink-0 ${
                       activeCategory === cat
                         ? 'bg-violet-600 text-white'
                         : 'bg-gray-100 text-gray-600 active:bg-gray-200'
@@ -2123,8 +2123,8 @@ const OrdersPage = ({ user }) => {
                         )}
                         
                         {/* Item Name & Price - Compact */}
-                        <p className="text-[10px] font-medium text-gray-600 text-center mt-0.5 line-clamp-1 w-full leading-tight">{item.name}</p>
-                        <p className="text-xs font-bold text-violet-600">₹{item.price}</p>
+                        <p className="text-xs sm:text-sm font-medium text-gray-700 text-center mt-1 line-clamp-2 w-full leading-tight">{item.name}</p>
+                        <p className="text-sm sm:text-base font-bold text-violet-600">₹{item.price}</p>
                       </div>
                     );
                   })}
