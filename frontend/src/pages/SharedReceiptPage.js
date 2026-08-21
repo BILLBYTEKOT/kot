@@ -88,16 +88,33 @@ export default function SharedReceiptPage() {
 
   const items = Array.isArray(receipt.items) ? receipt.items : [];
 
+  const handleDownloadPdf = () => {
+    if (typeof window === 'undefined' || typeof window.print !== 'function') {
+      setError('Your browser does not support downloading this invoice as a PDF.');
+      return;
+    }
+    window.print();
+  };
+
   return (
-    <div className="min-h-screen bg-stone-100 py-6 px-3">
-      <div className="max-w-xl mx-auto bg-white rounded-3xl shadow-xl overflow-hidden border border-stone-200">
+    <div className="min-h-screen bg-stone-100 py-6 px-3 print:bg-white print:py-0 print:px-0">
+      <div className="max-w-xl mx-auto bg-white rounded-3xl shadow-xl overflow-hidden border border-stone-200 print:max-w-none print:rounded-none print:shadow-none print:border-0">
+        <div className="flex justify-end px-6 pt-5 print:hidden">
+          <button
+            type="button"
+            onClick={handleDownloadPdf}
+            className="rounded-xl bg-stone-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-stone-700 focus:outline-none focus:ring-2 focus:ring-stone-500 focus:ring-offset-2"
+          >
+            Download invoice PDF
+          </button>
+        </div>
         <div className="bg-stone-900 text-white px-6 py-5">
           <div className="text-2xl font-bold">{receipt.restaurant_name || 'Restaurant'}</div>
           {receipt.restaurant_address ? <div className="text-sm text-stone-300 mt-1">{receipt.restaurant_address}</div> : null}
           {receipt.restaurant_phone ? <div className="text-sm text-stone-300 mt-1">{receipt.restaurant_phone}</div> : null}
         </div>
 
-        <div className="px-6 py-5 space-y-5">
+        <div className="px-6 py-5 space-y-5 print:pt-5">
           <div className="flex justify-between gap-4">
             <div>
               <div className="text-xs uppercase tracking-wide text-gray-500">Invoice</div>
