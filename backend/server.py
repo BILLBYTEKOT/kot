@@ -503,6 +503,31 @@ async def whatsapp_webhook_receive(payload: dict = Body(...)):
                         recipient_id,
                         json.dumps(error_summary),
                     )
+                    # Keep the asynchronous Meta delivery result queryable. An API
+                    # 200 only means Meta accepted the message for processing.
+                    try:
+                        await db.whatsapp_message_status.update_one(
+                            {"message_id": msg_id},
+                            {
+                                "$set": {
+                                    "message_id": msg_id,
+                                    "status": status,
+                                    "recipient_id": recipient_id,
+                                    "errors": error_summary,
+                                    "updated_at": datetime.now(timezone.utc).isoformat(),
+                                },
+                                "$setOnInsert": {
+                                    "created_at": datetime.now(timezone.utc).isoformat(),
+                                },
+                            },
+                            upsert=True,
+                        )
+                    except Exception as persistence_error:
+                        logging.error(
+                            "WA delivery status persistence failed | msg_id=%s | error=%s",
+                            msg_id,
+                            persistence_error,
+                        )
 
                 for message_event in value.get("messages", []) or []:
                     msg_id = message_event.get("id", "")
@@ -5641,8 +5666,16 @@ async def send_whatsapp_receipt_auto(
 
         result = await send_whatsapp_receipt_cloud(cleaned_phone, order, business, receipt_url=receipt_url)
         msg_id = result.get("messages", [{}])[0].get("id", "")
-        print(f"✅ WA receipt sent | to={cleaned_phone} | template={template_name} | params={template_params} | status=sent | msg_id={msg_id}")
-        return {"whatsapp_sent": True, "whatsapp_mode": "cloud", "whatsapp_error": None, "message_id": msg_id}
+        if not msg_id:
+            raise RuntimeError("Meta accepted the request without returning a WhatsApp message ID")
+        print(f"✅ WA receipt accepted | to={cleaned_phone} | template={template_name} | language=en_US | params={template_params} | status=accepted | msg_id={msg_id}")
+        return {
+            "whatsapp_sent": True,
+            "whatsapp_mode": "cloud",
+            "whatsapp_error": None,
+            "whatsapp_status": "accepted",
+            "message_id": msg_id,
+        }
     except Exception as e:
         print(f"❌ WA receipt failed | to={customer_phone} | status=failed | error={e}")
         return {"whatsapp_sent": False, "whatsapp_error": str(e)}
