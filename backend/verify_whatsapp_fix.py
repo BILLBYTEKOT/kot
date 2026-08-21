@@ -32,8 +32,8 @@ def verify_fix():
         bill_template = api.get_bill_template_name()
         print(f"  Bill template: {bill_template}")
         
-        if bill_template == "payment_receipt_with_in":
-            print("  ✅ Using approved payment_receipt_with_in UTILITY template")
+        if bill_template == "payment_receipt_with_invoice_link":
+            print("  ✅ Using approved payment_receipt_with_invoice_link UTILITY template")
         elif bill_template == "bill_confirmation":
             print("  ❌ Still using risky template - check deployment")
             return False
@@ -73,7 +73,7 @@ def verify_fix():
         # Overall assessment
         print("\n🎯 OVERALL ASSESSMENT:")
         
-        if bill_template == "payment_receipt_with_in" and is_safe and all_safe:
+        if bill_template == "payment_receipt_with_invoice_link" and is_safe and all_safe:
             print("✅ EMERGENCY FIX IS WORKING CORRECTLY")
             print("   - Safe templates are being used")
             print("   - Phone normalization is correct")
@@ -119,7 +119,7 @@ def check_environment():
     
     # Check for emergency overrides
     emergency_overrides = {
-        'WHATSAPP_TEMPLATE_BILL_CONFIRMATION': 'payment_receipt',
+        'WHATSAPP_TEMPLATE_BILL_CONFIRMATION': 'payment_receipt_with_invoice_link',
         'WHATSAPP_TEMPLATE_STATUS_PENDING': 'order_preparing'
     }
     

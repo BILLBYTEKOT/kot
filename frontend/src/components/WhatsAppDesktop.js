@@ -76,7 +76,7 @@ const WhatsAppDesktop = ({ isElectron: isElectronProp }) => {
     },
     {
       title: 'Payment Receipt',
-      templateName: 'payment_receipt_with_in',
+      templateName: 'payment_receipt_with_invoice_link',
       description: 'Approved utility template for completed or paid orders.',
       buildParams: ({ restaurantName: name, orderId, amount }) => [name || 'Restaurant', orderId || 'ORDER001', amount || 'INR 0.00']
     },
