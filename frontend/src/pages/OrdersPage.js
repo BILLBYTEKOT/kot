@@ -1970,9 +1970,9 @@ const OrdersPage = ({ user }) => {
             </div>
 
             {/* Search and Categories - Enhanced */}
-            <div className="bg-white px-3 py-2 border-b border-gray-100">
+            <div className="bg-white px-3 py-2.5 border-b border-gray-100 shadow-sm">
               <div className="relative mb-2">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-violet-400" />
                 <Input
                   placeholder="Search items..."
                   value={menuSearch}
@@ -1988,15 +1988,15 @@ const OrdersPage = ({ user }) => {
                   </button>
                 )}
               </div>
-              <div className="flex gap-1.5 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide" style={{ WebkitOverflowScrolling: 'touch' }}>
+              <div className="flex items-center gap-2 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide" style={{ WebkitOverflowScrolling: 'touch' }}>
                 {categories.map(cat => (
                   <button
                     key={cat}
                     onClick={() => setActiveCategory(cat)}
-                    className={`px-3 py-2 rounded-full text-sm font-medium transition-all whitespace-nowrap flex-shrink-0 ${
+                    className={`px-3.5 py-2 rounded-full text-sm font-semibold transition-all duration-200 whitespace-nowrap flex-shrink-0 border ${
                       activeCategory === cat
-                        ? 'bg-violet-600 text-white'
-                        : 'bg-gray-100 text-gray-600 active:bg-gray-200'
+                        ? 'bg-violet-600 text-white border-violet-600 shadow-md shadow-violet-200 scale-[1.02]'
+                        : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-violet-50 hover:border-violet-200 hover:text-violet-700 active:scale-95'
                     }`}
                   >
                     {cat === 'all' ? '🍽️ All' : cat}
@@ -2026,7 +2026,7 @@ const OrdersPage = ({ user }) => {
                     return (
                       <div
                         key={item.id}
-                        className="flex flex-col items-center py-1"
+                        className="group flex flex-col items-center rounded-2xl px-1 py-2 transition-all duration-200 hover:-translate-y-1 hover:bg-white hover:shadow-md"
                       >
                         {/* Round Plate with tap animation */}
                         <div
