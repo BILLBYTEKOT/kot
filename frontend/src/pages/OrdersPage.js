@@ -2645,7 +2645,7 @@ const OrdersPage = ({ user }) => {
         </div>
 
         {/* Tabs for Active Orders and Today's Bills */}
-        <div className="flex gap-2 mb-4 bg-gray-100 p-1 rounded-xl">
+        <div className="orders-tabs flex gap-2 mb-4 bg-gray-100/90 p-1 rounded-2xl border border-gray-200/80 shadow-sm">
           <button
             onClick={() => {
               setActiveTab('active');
@@ -2654,8 +2654,8 @@ const OrdersPage = ({ user }) => {
             }}
             className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-all ${
               activeTab === 'active'
-                ? 'bg-white text-violet-700 shadow-sm'
-                : 'text-gray-600 hover:text-gray-800'
+                ? 'orders-tab-active bg-white text-violet-700 shadow-md'
+                : 'text-gray-600 hover:text-gray-800 hover:bg-white/70'
             }`}
           >
             <Clock className="w-4 h-4" />
@@ -2672,8 +2672,8 @@ const OrdersPage = ({ user }) => {
             }}
             className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-medium text-sm transition-all ${
               activeTab === 'history'
-                ? 'bg-white text-violet-700 shadow-sm'
-                : 'text-gray-600 hover:text-gray-800'
+                ? 'orders-tab-active bg-white text-violet-700 shadow-md'
+                : 'text-gray-600 hover:text-gray-800 hover:bg-white/70'
             }`}
           >
             <CheckCircle className="w-4 h-4" />
@@ -2688,7 +2688,7 @@ const OrdersPage = ({ user }) => {
         {loading && (
           <div className="space-y-3">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm animate-pulse">
+              <div key={i} className={`order-skeleton bg-white rounded-2xl p-4 border border-gray-100 shadow-sm skeleton ${i === 2 ? 'animation-delay-100' : i === 3 ? 'animation-delay-200' : ''}`}>
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-gray-200 rounded-full"></div>
@@ -2716,8 +2716,8 @@ const OrdersPage = ({ user }) => {
         {!loading && activeTab === 'active' && (
           <div className="space-y-3">
             {filterActiveOrders(orders).length === 0 && (
-              <div className="bg-white rounded-2xl p-8 text-center border border-gray-100 shadow-sm">
-                <div className="w-16 h-16 bg-violet-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <div className="order-empty-state bg-white rounded-2xl p-8 text-center border border-gray-100 shadow-sm">
+                <div className="order-empty-icon w-16 h-16 bg-violet-100 rounded-full flex items-center justify-center mx-auto mb-4">
                   <span className="text-3xl">{loadFailed ? '⚠️' : '🍽️'}</span>
                 </div>
                 {loadFailed ? (
@@ -2739,7 +2739,7 @@ const OrdersPage = ({ user }) => {
                 )}
               </div>
             )}
-            {filterActiveOrders(orders).map((order) => {
+            {filterActiveOrders(orders).map((order, orderIndex) => {
               const statusConfig = {
                 pending: { color: 'amber', icon: '⏳', label: 'Pending', bg: 'bg-amber-500' },
                 preparing: { color: 'blue', icon: '👨‍🍳', label: 'Cooking', bg: 'bg-blue-500' },
@@ -2748,7 +2748,7 @@ const OrdersPage = ({ user }) => {
               const config = statusConfig[order.status] || statusConfig.pending;
               
               return (
-                <div key={order.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden" data-testid={`order-card-${order.id}`}>
+                <div key={order.id} className={`order-card order-card-enter bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden ${order.status === 'pending' ? 'order-card-pending' : ''}`} style={{ '--order-index': orderIndex }} data-testid={`order-card-${order.id}`}>
                   {/* Header Row */}
                   <div className="flex items-center justify-between p-3 border-b border-gray-50">
                     <div className="flex items-center gap-3">

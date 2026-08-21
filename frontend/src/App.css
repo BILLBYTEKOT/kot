@@ -127,6 +127,42 @@ button:active {
   animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
+/* Orders workflow motion */
+@keyframes orderCardEnter {
+  from { opacity: 0; transform: translateY(14px) scale(0.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes orderPendingGlow {
+  0%, 100% { box-shadow: 0 4px 18px rgba(245, 158, 11, 0.08); }
+  50% { box-shadow: 0 8px 26px rgba(245, 158, 11, 0.2); }
+}
+
+.order-card-enter {
+  animation: orderCardEnter 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(var(--order-index, 0) * 70ms);
+  transition: transform 220ms ease, box-shadow 220ms ease, border-color 220ms ease;
+}
+
+.order-card-enter:hover { transform: translateY(-3px); box-shadow: 0 12px 30px rgba(76, 29, 149, 0.11); }
+.order-card-pending { animation-name: orderCardEnter, orderPendingGlow; animation-duration: 420ms, 3.5s; animation-iteration-count: 1, infinite; }
+.order-card button { transition: transform 180ms ease, box-shadow 180ms ease, background-color 180ms ease; }
+.order-card button:hover { transform: translateY(-2px); }
+.order-card button:active { transform: scale(0.96); }
+.orders-tab-active { animation: tabSettle 260ms ease-out; }
+.order-empty-state { animation: orderCardEnter 500ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+.order-empty-icon { animation: emptyFloat 2.8s ease-in-out infinite; }
+@keyframes emptyFloat { 0%, 100% { transform: translateY(0) rotate(-2deg); } 50% { transform: translateY(-7px) rotate(2deg); } }
+@keyframes tabSettle { from { opacity: 0.7; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
+
+.animation-delay-100 { animation-delay: 100ms; }
+.animation-delay-200 { animation-delay: 200ms; }
+
+@media (prefers-reduced-motion: reduce) {
+  .order-card-enter, .order-card-pending, .orders-tab-active, .skeleton { animation: none !important; }
+  .order-card-enter, .order-card button { transition: none !important; }
+}
+
 /* ============================================
    RESPONSIVE & ADVANCED UI STYLES
    ============================================ */
