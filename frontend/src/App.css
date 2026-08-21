@@ -467,6 +467,73 @@ html {
   box-shadow: 0 12px 40px -10px rgba(0, 0, 0, 0.15);
 }
 
+/* Dashboard command-center styling */
+.dashboard-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  min-height: 100%;
+}
+
+.dashboard-hero {
+  position: relative;
+  overflow: hidden;
+  padding: 1.25rem 1.5rem;
+  border: 1px solid #ede9fe;
+  border-radius: 1.25rem;
+  background: linear-gradient(120deg, #ffffff 0%, #faf5ff 62%, #f5f3ff 100%);
+  box-shadow: 0 12px 35px rgba(76, 29, 149, 0.07);
+}
+
+.dashboard-hero::after {
+  content: '';
+  position: absolute;
+  width: 16rem;
+  height: 16rem;
+  right: -7rem;
+  top: -10rem;
+  border-radius: 999px;
+  background: rgba(139, 92, 246, 0.12);
+}
+
+.dashboard-stats {
+  perspective: 900px;
+}
+
+.dashboard-stat-card {
+  animation: dashboardCardEnter 500ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  transition: transform 240ms ease, box-shadow 240ms ease;
+}
+
+.dashboard-stat-card:nth-child(2) { animation-delay: 70ms; }
+.dashboard-stat-card:nth-child(3) { animation-delay: 140ms; }
+.dashboard-stat-card:nth-child(4) { animation-delay: 210ms; }
+.dashboard-stat-card:hover { transform: translateY(-5px) rotateX(1deg); box-shadow: 0 18px 32px rgba(76, 29, 149, 0.16); }
+
+.dashboard-panel {
+  border: 1px solid #eef0f4;
+  border-radius: 1.1rem;
+  box-shadow: 0 10px 28px rgba(15, 23, 42, 0.06);
+  transition: box-shadow 220ms ease, transform 220ms ease;
+}
+.dashboard-panel:hover { box-shadow: 0 16px 34px rgba(15, 23, 42, 0.09); }
+
+.dashboard-shell .bg-gray-50 {
+  border: 1px solid #f1f2f5;
+  transition: background-color 180ms ease, transform 180ms ease;
+}
+.dashboard-shell .bg-gray-50:hover { transform: translateX(3px); }
+
+@keyframes dashboardCardEnter {
+  from { opacity: 0; transform: translateY(12px) scale(.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-stat-card { animation: none; transition: none; }
+  .dashboard-panel, .dashboard-shell .bg-gray-50 { transition: none; }
+}
+
 /* ============================================
    FORM ENHANCEMENTS
    ============================================ */

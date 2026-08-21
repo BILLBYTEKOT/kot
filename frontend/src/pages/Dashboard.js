@@ -225,12 +225,12 @@ const Dashboard = ({ user }) => {
 
   return (
     <Layout user={user}>
-      <div className="space-y-6" data-testid="dashboard-page">
+      <div className="dashboard-shell" data-testid="dashboard-page">
         {/* Trial Banner */}
         <TrialBanner user={user} />
 
         {/* Header Section */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="dashboard-hero flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-3 mb-1">
               <p className="text-gray-500 text-sm font-medium">{getGreeting()}</p>
@@ -262,9 +262,9 @@ const Dashboard = ({ user }) => {
         </div>
 
         {/* Main Stats Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="dashboard-stats grid grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Today's Sales */}
-          <Card className="border-0 shadow-lg bg-gradient-to-br from-emerald-500 to-green-600 text-white overflow-hidden relative">
+          <Card className="dashboard-stat-card border-0 shadow-lg bg-gradient-to-br from-emerald-500 to-green-600 text-white overflow-hidden relative">
             <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16"></div>
             <CardContent className="p-5">
               <div className="flex items-center justify-between">
@@ -380,7 +380,7 @@ const Dashboard = ({ user }) => {
         {/* Middle Section - Recent Orders & Top Items */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Recent Orders */}
-          <Card className="border-0 shadow-lg">
+          <Card className="dashboard-panel border-0 shadow-lg">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <CardTitle className="flex items-center gap-2 text-lg">
@@ -421,7 +421,7 @@ const Dashboard = ({ user }) => {
           </Card>
 
           {/* Top Selling Items */}
-          <Card className="border-0 shadow-lg">
+          <Card className="dashboard-panel border-0 shadow-lg">
             <CardHeader className="pb-3">
               <CardTitle className="flex items-center gap-2 text-lg">
                 <Award className="w-5 h-5 text-amber-500" />
