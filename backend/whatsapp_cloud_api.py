@@ -41,9 +41,12 @@ class WhatsAppCloudAPI:
         self.template_name = os.getenv("WHATSAPP_TEMPLATE_NAME", "order").strip()
         self.template_lang = os.getenv("WHATSAPP_TEMPLATE_LANG", "en_US").strip()
         # Use the actual Meta-approved utility templates from the business account.
-        self.template_bill_confirmation = os.getenv("WHATSAPP_TEMPLATE_BILL_CONFIRMATION", "payment_receipt_with_in").strip()
-        self.template_bill_uses_receipt_url = os.getenv("WHATSAPP_TEMPLATE_BILL_USES_RECEIPT_URL", "false").strip().lower() in ("1", "true", "yes", "on")
-        self.template_bill_use_url_button = os.getenv("WHATSAPP_TEMPLATE_BILL_USE_URL_BUTTON", "false").strip().lower() in ("1", "true", "yes", "on")
+        # This is the approved UTILITY template configured in Meta Business Manager.
+        # Keep the name/language stable: a 200 response is not delivery confirmation.
+        self.template_bill_confirmation = "payment_receipt_with_in"
+        self.template_lang = "en_US"
+        self.template_bill_uses_receipt_url = False
+        self.template_bill_use_url_button = False
         self.template_status_pending = os.getenv("WHATSAPP_TEMPLATE_STATUS_PENDING", "order").strip()
         self.template_status_preparing = os.getenv("WHATSAPP_TEMPLATE_STATUS_PREPARING", "order_preparing").strip()
         self.template_status_ready = os.getenv("WHATSAPP_TEMPLATE_STATUS_READY", "order_ready").strip()
