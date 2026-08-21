@@ -89,9 +89,9 @@ const ElectronNavigator = () => {
   return null;
 };
 
-// During local development, prefer the running backend on port 10000 so the UI
-// can authenticate and exercise features against the same server that is launched here.
-const BACKEND_URL = 'http://127.0.0.1:10000';
+// Use the configured backend in deployed previews and production. Fall back to
+// the local API only when no backend environment variable is available.
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL?.trim();
 const LOCAL_BACKEND_URL = 'http://127.0.0.1:10000';
 export const API = `${BACKEND_URL || LOCAL_BACKEND_URL}/api`;
 export const SUPER_ADMIN_API_PREFIX = '/api/super-admin';
