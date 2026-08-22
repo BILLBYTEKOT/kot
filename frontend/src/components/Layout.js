@@ -5,7 +5,7 @@ import { logout } from '../App';
 import NotificationBell from './NotificationBell';
 import { 
   Home, UtensilsCrossed, ShoppingBag, Table, ChefHat, Package, 
-  FileText, LogOut, Menu, X, Settings as SettingsIcon, Crown, Users, Zap,
+  FileText, LogOut, Menu, X, Settings as SettingsIcon, Crown, Users, UserRound, Zap,
   MoreHorizontal, HelpCircle, TrendingDown, Gift
 } from 'lucide-react';
 
@@ -30,8 +30,9 @@ const Layout = ({ user, children }) => {
     { path: '/kitchen', icon: ChefHat, label: 'Kitchen' },
     { path: '/inventory', icon: Package, label: 'Inventory' },
     { path: '/expenses', icon: TrendingDown, label: 'Expenses' },
-    { path: '/reports', icon: FileText, label: 'Reports' },
-    { path: '/staff', icon: Users, label: 'Staff', adminOnly: true },
+  { path: '/reports', icon: FileText, label: 'Reports' },
+  { path: '/customers', icon: UserRound, label: 'Customers' },
+  { path: '/staff', icon: Users, label: 'Staff', adminOnly: true },
     { path: '/refer-earn', icon: Gift, label: 'Refer & Earn' },
     { path: '/subscription', icon: Crown, label: 'Subscription' },
     { path: '/help', icon: HelpCircle, label: 'Help' },

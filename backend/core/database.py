@@ -125,6 +125,10 @@ async def create_indexes():
         sparse=True
     )
 
+    # ── CUSTOMERS ────────────────────────────────────────────────────────────────
+    await _safe_index(d.customers, [("organization_id", 1), ("phone", 1)], "idx_customers_org_phone", unique=True)
+    await _safe_index(d.customers, [("organization_id", 1), ("created_at", -1)], "idx_customers_org_created")
+
     # ── MENU ITEMS ────────────────────────────────────────────────────────────
     await _safe_index(d.menu_items, [("organization_id", 1)], "idx_menu_org")
     await _safe_index(
