@@ -250,6 +250,7 @@ const BlogPage = () => {
           'restaurant billing software blog', 'KOT system guide', 'restaurant POS tips India',
           'GST billing software', 'restaurant management tips 2026', 'billing software guides',
           'POS system India 2026', 'cloud kitchen billing', 'WhatsApp billing restaurant',
+  'best restaurant billing software for small business', 'restaurant sales growth', 'global restaurant POS buying guide',
           'restaurant billing app Android', 'restaurant POS Windows app', 'KOT app download',
           'restaurant billing software UAE', 'restaurant POS UK', 'restaurant app worldwide',
           'offline restaurant billing app', 'best restaurant app 2026',
@@ -310,7 +311,7 @@ const BlogPage = () => {
                 BillByteKOT Blog
               </h1>
               <p className="text-white/80 text-base md:text-lg mb-8 leading-relaxed">
-                Restaurant billing software guides, KOT system tips, POS India reviews, GST billing &amp; more
+                Practical restaurant billing software guides, KOT system playbooks, POS comparisons and sales-growth ideas for restaurants worldwide
               </p>
               {/* Search */}
               <div className="relative max-w-lg mx-auto">
