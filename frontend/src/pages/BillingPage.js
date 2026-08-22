@@ -37,6 +37,7 @@ const BillingPage = ({ user }) => {
   const [showCustomerModal, setShowCustomerModal] = useState(false);
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
+  const [matchedCustomer, setMatchedCustomer] = useState(null);
   const [loading, setLoading] = useState(false);
   const [businessSettings, setBusinessSettings] = useState(null);
   const [showWhatsappModal, setShowWhatsappModal] = useState(false);
@@ -160,6 +161,28 @@ const BillingPage = ({ user }) => {
       console.warn('WhatsApp consent capture failed:', error);
     }
   };
+
+  useEffect(() => {
+    const phone = customerPhone.trim();
+    if (phone.length < 7) {
+      setMatchedCustomer(null);
+      return undefined;
+    }
+    const timer = window.setTimeout(async () => {
+      try {
+        const response = await apiClient.get(`${API}/customers/phone/${encodeURIComponent(phone)}`);
+        if (response.data?.found && response.data.customer) {
+          setMatchedCustomer(response.data.customer);
+          setCustomerName((current) => current || response.data.customer.name || '');
+        } else {
+          setMatchedCustomer(null);
+        }
+      } catch (error) {
+        setMatchedCustomer(null);
+      }
+    }, 350);
+    return () => window.clearTimeout(timer);
+  }, [customerPhone]);
 
   useEffect(() => {
     loadBillingDataOptimized();
@@ -943,8 +966,21 @@ const BillingPage = ({ user }) => {
       // 🗑️ CACHE INVALIDATION: Clear cached billing data after successful payment
       billingCache.invalidateOrder(orderId);
       
-      toast.success(isCredit ? 'Partial payment recorded!' : 'Payment completed!');
-      setPaymentCompleted(true);
+  toast.success(isCredit ? 'Partial payment recorded!' : 'Payment completed!');
+  if (customerPhone.trim()) {
+    apiSilent({
+      method: 'post',
+      url: `${API}/customers`,
+      data: {
+        name: customerName.trim() || 'Guest',
+        phone: customerPhone.trim(),
+        email: null,
+        address: null,
+        notes: null
+      }
+    }).catch((customerError) => console.warn('Customer save failed:', customerError));
+  }
+  setPaymentCompleted(true);
       
       // 🚀 IMMEDIATE EVENT DISPATCH: Notify OrdersPage about payment completion
       // IMPORTANT: Remove from active orders regardless of payment status (full or partial)
@@ -2930,10 +2966,15 @@ const handleWhatsappShare = async () => {
                     placeholder="+91 9876543210" 
                     value={customerPhone} 
                     onChange={(e) => setCustomerPhone(e.target.value)} 
-                    className="h-12 text-lg mt-1" 
-                  />
-                </div>
-              </div>
+  className="h-12 text-lg mt-1"
+  />
+  {matchedCustomer && (
+  <p className="mt-2 text-sm text-green-700" role="status">
+  Returning customer found: {matchedCustomer.name || 'Guest'} · {matchedCustomer.total_orders || 0} previous visits
+  </p>
+  )}
+  </div>
+  </div>
               <div className="flex gap-3 mt-6">
                 <Button 
                   variant="outline" 
