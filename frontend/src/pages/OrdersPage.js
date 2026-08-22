@@ -128,7 +128,47 @@ const OrdersPage = ({ user }) => {
   const [activeCategory, setActiveCategory] = useState('all');
   const [tableSearch, setTableSearch] = useState(''); // Search for tables
   const [subscriptionStatus, setSubscriptionStatus] = useState(null);
-  
+
+  // Customer typeahead (instant select while typing name/phone)
+  const [customerSuggestions, setCustomerSuggestions] = useState([]);
+  const [customerSearchLoading, setCustomerSearchLoading] = useState(false);
+  const [showCustomerSuggestions, setShowCustomerSuggestions] = useState(false);
+  const [activeCustomerField, setActiveCustomerField] = useState(null); // 'name' | 'phone'
+  const customerSearchTimer = useRef(null);
+  const suppressCustomerSearch = useRef(false);
+
+  const searchCustomers = (query, field) => {
+    if (customerSearchTimer.current) clearTimeout(customerSearchTimer.current);
+    const q = (query || '').trim();
+    setActiveCustomerField(field);
+    if (q.length < 2) {
+      setCustomerSuggestions([]);
+      setShowCustomerSuggestions(false);
+      setCustomerSearchLoading(false);
+      return;
+    }
+    setCustomerSearchLoading(true);
+    setShowCustomerSuggestions(true);
+    customerSearchTimer.current = setTimeout(async () => {
+      const res = await apiSilent({ method: 'get', url: `${API}/customers`, params: { search: q } });
+      const list = Array.isArray(res?.data) ? res.data : [];
+      setCustomerSuggestions(list.slice(0, 8));
+      setCustomerSearchLoading(false);
+    }, 250);
+  };
+
+  const selectCustomer = (customer) => {
+    suppressCustomerSearch.current = true;
+    setFormData((prev) => ({
+      ...prev,
+      customer_name: customer.name || prev.customer_name,
+      customer_phone: customer.phone || prev.customer_phone,
+    }));
+    setShowCustomerSuggestions(false);
+    setCustomerSuggestions([]);
+    setActiveCustomerField(null);
+  };
+
   // Simplified edit order state for new EditOrderModal component
   const [editOrderModal, setEditOrderModal] = useState({ open: false, order: null });
   
@@ -2069,7 +2109,7 @@ const OrdersPage = ({ user }) => {
                                  item.category?.toLowerCase().includes('salad') ? '🥗' :
                                  item.category?.toLowerCase().includes('sandwich') ? '🥪' :
                                  item.category?.toLowerCase().includes('chicken') ? '🍗' :
-                                 item.category?.toLowerCase().includes('fish') ? '🐟' :
+                                 item.category?.toLowerCase().includes('fish') ? '����' :
                                  item.category?.toLowerCase().includes('egg') ? '🍳' :
                                  item.category?.toLowerCase().includes('bread') ? '🍞' :
                                  '🍽️'}
@@ -2560,32 +2600,62 @@ const OrdersPage = ({ user }) => {
                       )}
                       
                       {/* Customer Name */}
-                      <div>
+                      <div className="relative">
                         <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
                           <span className="w-6 h-6 bg-violet-100 rounded-full flex items-center justify-center text-violet-600 text-xs">👤</span>
                           Customer Name
                         </label>
                         <Input
                           value={formData.customer_name}
-                          onChange={(e) => setFormData({ ...formData, customer_name: e.target.value })}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            setFormData({ ...formData, customer_name: value });
+                            if (suppressCustomerSearch.current) { suppressCustomerSearch.current = false; return; }
+                            searchCustomers(value, 'name');
+                          }}
+                          onFocus={() => { if (customerSuggestions.length && activeCustomerField === 'name') setShowCustomerSuggestions(true); }}
+                          onBlur={() => setTimeout(() => setShowCustomerSuggestions(false), 150)}
                           placeholder={businessSettings?.kot_mode_enabled !== false ? "Enter customer name (optional)" : "Enter name or leave blank"}
                           className="mt-2 h-12 text-base rounded-xl border-gray-200 focus:border-violet-400 focus:ring-violet-400"
                           autoFocus={businessSettings?.kot_mode_enabled === false}
+                          autoComplete="off"
                         />
+                        {showCustomerSuggestions && activeCustomerField === 'name' && (
+                          <CustomerSuggestionList
+                            loading={customerSearchLoading}
+                            suggestions={customerSuggestions}
+                            onSelect={selectCustomer}
+                          />
+                        )}
                       </div>
                       
                       {/* Phone */}
-                      <div>
+                      <div className="relative">
                         <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
                           <span className="w-6 h-6 bg-green-100 rounded-full flex items-center justify-center text-green-600 text-xs">📱</span>
                           Phone number (to receive bill and order updates on WhatsApp).
                         </label>
                         <Input
                           value={formData.customer_phone}
-                          onChange={(e) => setFormData({ ...formData, customer_phone: e.target.value })}
+                          onChange={(e) => {
+                            const value = e.target.value;
+                            setFormData({ ...formData, customer_phone: value });
+                            if (suppressCustomerSearch.current) { suppressCustomerSearch.current = false; return; }
+                            searchCustomers(value, 'phone');
+                          }}
+                          onFocus={() => { if (customerSuggestions.length && activeCustomerField === 'phone') setShowCustomerSuggestions(true); }}
+                          onBlur={() => setTimeout(() => setShowCustomerSuggestions(false), 150)}
                           placeholder="+91 9876543210"
                           className="mt-2 h-12 text-base rounded-xl border-gray-200 focus:border-violet-400 focus:ring-violet-400"
+                          autoComplete="off"
                         />
+                        {showCustomerSuggestions && activeCustomerField === 'phone' && (
+                          <CustomerSuggestionList
+                            loading={customerSearchLoading}
+                            suggestions={customerSuggestions}
+                            onSelect={selectCustomer}
+                          />
+                        )}
                       </div>
                       
                       {/* Don't ask again - Only show when KOT is disabled */}
@@ -3485,6 +3555,37 @@ const OrdersPage = ({ user }) => {
         onToggle={togglePerformanceDashboard}
       /> */}
     </Layout>
+  );
+};
+
+// Instant customer typeahead dropdown shown under the name/phone inputs
+const CustomerSuggestionList = ({ loading, suggestions, onSelect }) => {
+  if (!loading && suggestions.length === 0) return null;
+  return (
+    <div className="absolute left-0 right-0 top-full z-50 mt-1 max-h-64 overflow-y-auto rounded-xl border border-gray-200 bg-white shadow-xl">
+      {loading ? (
+        <div className="px-4 py-3 text-sm text-gray-500">Searching customers…</div>
+      ) : (
+        suggestions.map((customer) => (
+          <button
+            key={customer.id || customer.phone}
+            type="button"
+            onMouseDown={(e) => { e.preventDefault(); onSelect(customer); }}
+            className="flex w-full items-center justify-between gap-3 border-b border-gray-100 px-4 py-3 text-left last:border-b-0 hover:bg-violet-50"
+          >
+            <span className="min-w-0">
+              <span className="block truncate text-sm font-semibold text-gray-800">{customer.name || 'Guest'}</span>
+              {customer.phone && <span className="block truncate text-xs text-gray-500">{customer.phone}</span>}
+            </span>
+            {typeof customer.total_orders === 'number' && customer.total_orders > 0 && (
+              <span className="shrink-0 rounded-full bg-violet-100 px-2 py-0.5 text-xs font-medium text-violet-600">
+                {customer.total_orders} visit{customer.total_orders > 1 ? 's' : ''}
+              </span>
+            )}
+          </button>
+        ))
+      )}
+    </div>
   );
 };
 
