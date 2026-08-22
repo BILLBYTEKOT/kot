@@ -16,6 +16,7 @@ import time
 import random
 import re
 import math
+from urllib.parse import quote
 import secrets
 import builtins
 from datetime import datetime, timedelta, timezone
@@ -2510,8 +2511,8 @@ async def generate_receipt_pdf(order: dict, business: dict) -> StreamingResponse
             created_at = None
 
     elements = []
-    elements.append(Paragraph(restaurant_name, title_style))
-    elements.append(Paragraph(f"Receipt #{invoice_label}", meta_style))
+    elements.append(Paragraph(html.escape(str(restaurant_name)), title_style))
+    elements.append(Paragraph(html.escape(f"Receipt #{invoice_label}"), meta_style))
 
     contact_lines = []
     if business.get("address"):
@@ -2606,11 +2607,15 @@ async def generate_receipt_pdf(order: dict, business: dict) -> StreamingResponse
 
     doc.build(elements)
     buffer.seek(0)
-    filename = f"receipt-{invoice_label}.pdf"
+    safe_filename = re.sub(r"[^A-Za-z0-9._-]+", "-", str(invoice_label)).strip(".-") or "invoice"
     return StreamingResponse(
         buffer,
         media_type="application/pdf",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+        headers={
+            "Content-Disposition": f'attachment; filename="receipt-{safe_filename}.pdf"',
+            "X-Content-Type-Options": "nosniff",
+            "Cache-Control": "private, no-store",
+        },
     )
 
 
@@ -10764,9 +10769,20 @@ async def track_order_public(tracking_token: str):
     }
 
 
+PUBLIC_TOKEN_PATTERN = re.compile(r"^[A-Za-z0-9_-]{8,128}$")
+
+
+def validate_public_token(tracking_token: str) -> str:
+    """Reject malformed public tokens before querying the database."""
+    if not PUBLIC_TOKEN_PATTERN.fullmatch(tracking_token):
+        raise HTTPException(status_code=404, detail="Receipt not found")
+    return tracking_token
+
+
 @app.get("/api/public/receipt/{tracking_token}")
 async def receipt_public(tracking_token: str, download: int = 0):
     """Public customer receipt page for invoice viewing/downloading."""
+    tracking_token = validate_public_token(tracking_token)
     order = await db.orders.find_one(
         {"tracking_token": tracking_token},
         {"_id": 0}
@@ -10803,8 +10819,9 @@ async def receipt_public(tracking_token: str, download: int = 0):
     currency_symbol = CURRENCY_SYMBOLS.get(currency_code, "₹")
     theme = business.get("receipt_theme", "classic")
     receipt_content = get_receipt_template(theme, business, order, currency_symbol)
-    invoice_label = order.get("invoice_number") or str(order.get("id", ""))[:8].upper()
-    restaurant_name = business.get("restaurant_name", "Restaurant")
+    invoice_label = html.escape(str(order.get("invoice_number") or str(order.get("id", ""))[:8].upper()))
+    restaurant_name = html.escape(str(business.get("restaurant_name") or "Restaurant"))
+    safe_tracking_token = quote(tracking_token, safe="")
 
     if download:
         return await generate_receipt_pdf(order, business)
@@ -10895,8 +10912,8 @@ async def receipt_public(tracking_token: str, download: int = 0):
           <div class="subtitle">Receipt #{invoice_label}</div>
         </div>
         <div class="actions">
-          <a class="btn btn-primary" href="/api/public/receipt/{tracking_token}?download=1">Download</a>
-          <a class="btn btn-secondary" href="javascript:window.print()">Print</a>
+          <a class="btn btn-primary" href="/api/public/receipt/{safe_tracking_token}?download=1" download="invoice.pdf">Download PDF</a>
+          <button class="btn btn-secondary" type="button" onclick="window.print()">Print</button>
         </div>
       </div>
       <pre>{html.escape(receipt_content)}</pre>
@@ -10910,6 +10927,7 @@ async def receipt_public(tracking_token: str, download: int = 0):
 @app.get("/api/public/receipt-data/{tracking_token}")
 async def receipt_public_data(tracking_token: str):
     """Public customer receipt data for frontend receipt rendering."""
+    tracking_token = validate_public_token(tracking_token)
     order = await db.orders.find_one(
         {"tracking_token": tracking_token},
         {"_id": 0}
