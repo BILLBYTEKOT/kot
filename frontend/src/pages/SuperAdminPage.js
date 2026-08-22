@@ -1568,7 +1568,7 @@ const SuperAdminPage = () => {
 
   return (
   <div className="min-h-screen w-full overflow-x-hidden bg-gray-50 px-3 py-4 sm:px-5 sm:py-6 lg:px-8">
-  <div className="mx-auto w-full max-w-[1600px]">
+  <div className="w-full">
   {/* Header */}
   <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
