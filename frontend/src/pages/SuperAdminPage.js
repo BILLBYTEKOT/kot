@@ -1,4 +1,4 @@
-﻿import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
 import { API } from '../App';
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card';
@@ -1567,12 +1567,12 @@ const SuperAdminPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-6 flex items-center justify-between">
+  <div className="min-h-screen w-full overflow-x-hidden bg-gray-50 px-3 py-4 sm:px-5 sm:py-6 lg:px-8">
+  <div className="mx-auto w-full max-w-[1600px]">
+  {/* Header */}
+  <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-2">
+            <h1 className="flex items-center gap-2 text-2xl font-bold text-gray-900 sm:text-3xl">
               <Shield className="w-8 h-8 text-purple-600" />
               {userType === 'super-admin' ? 'Ops Controls' : 'Team Panel'}
             </h1>
@@ -1599,6 +1599,7 @@ const SuperAdminPage = () => {
             </p>
           </div>
           <Button 
+            className="self-start sm:self-auto"
             onClick={() => {
               setAuthenticated(false);
               setUserType(null);
@@ -1613,7 +1614,7 @@ const SuperAdminPage = () => {
         </div>
 
         {/* Tabs - Show based on permissions */}
-        <div className="mb-6 flex gap-2 border-b overflow-x-auto">
+        <div className="mb-6 flex gap-1 overflow-x-auto border-b sm:gap-2">
           {getAvailableTabs().map(tab => (
             <button
               key={tab}
