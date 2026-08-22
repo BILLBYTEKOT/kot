@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { Download, Printer } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 
@@ -88,24 +89,50 @@ export default function SharedReceiptPage() {
 
   const items = Array.isArray(receipt.items) ? receipt.items : [];
 
-  const handleDownloadPdf = () => {
-    if (typeof window === 'undefined' || typeof window.print !== 'function') {
-      setError('Your browser does not support downloading this invoice as a PDF.');
-      return;
+  const handleDownloadPdf = async () => {
+    try {
+      const response = await axios.get(
+        `${BACKEND_URL}/api/public/receipt/${encodedReceipt}?download=1`,
+        { responseType: 'blob' }
+      );
+      const blobUrl = window.URL.createObjectURL(response.data);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = `invoice-${receipt.invoice_number || encodedReceipt}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      setError('Unable to download this invoice. Please try again.');
     }
-    window.print();
+  };
+
+  const handlePrint = () => {
+    if (typeof window !== 'undefined' && typeof window.print === 'function') {
+      window.print();
+    }
   };
 
   return (
     <div className="min-h-screen bg-stone-100 py-6 px-3 print:bg-white print:py-0 print:px-0">
       <div className="max-w-xl mx-auto bg-white rounded-3xl shadow-xl overflow-hidden border border-stone-200 print:max-w-none print:rounded-none print:shadow-none print:border-0">
-        <div className="flex justify-end px-6 pt-5 print:hidden">
+        <div className="flex flex-wrap justify-end gap-3 px-6 pt-5 print:hidden">
           <button
             type="button"
             onClick={handleDownloadPdf}
-            className="rounded-xl bg-stone-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-stone-700 focus:outline-none focus:ring-2 focus:ring-stone-500 focus:ring-offset-2"
+            className="inline-flex items-center gap-2 rounded-xl bg-stone-900 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-stone-700 focus:outline-none focus:ring-2 focus:ring-stone-500 focus:ring-offset-2"
           >
+            <Download aria-hidden="true" size={18} />
             Download invoice PDF
+          </button>
+          <button
+            type="button"
+            onClick={handlePrint}
+            className="inline-flex items-center gap-2 rounded-xl border border-stone-300 bg-white px-4 py-2.5 text-sm font-semibold text-stone-900 shadow-sm transition hover:bg-stone-50 focus:outline-none focus:ring-2 focus:ring-stone-500 focus:ring-offset-2"
+          >
+            <Printer aria-hidden="true" size={18} />
+            Print
           </button>
         </div>
         <div className="bg-stone-900 text-white px-6 py-5">
