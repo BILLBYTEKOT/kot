@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { Button } from './ui/button';
 import { logout } from '../App';
@@ -6,7 +6,7 @@ import NotificationBell from './NotificationBell';
 import { 
   Home, UtensilsCrossed, ShoppingBag, Table, ChefHat, Package, 
   FileText, LogOut, Menu, X, Settings as SettingsIcon, Crown, Users, UserRound, Zap,
-  MoreHorizontal, HelpCircle, TrendingDown, Gift
+  MoreHorizontal, HelpCircle, TrendingDown, Gift, ChevronLeft, ChevronRight
 } from 'lucide-react';
 
 const Layout = ({ user, children }) => {
@@ -14,6 +14,16 @@ const Layout = ({ user, children }) => {
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.localStorage.getItem('sidebarCollapsed') === 'true';
+  });
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem('sidebarCollapsed', String(collapsed));
+    }
+  }, [collapsed]);
 
   const handleLogout = () => {
     // Use the global logout function that clears both storage and React state
@@ -46,35 +56,60 @@ const Layout = ({ user, children }) => {
   return (
     <div className="min-h-screen flex bg-gray-50" data-testid="layout">
       {/* Sidebar - Desktop */}
-      <aside className="hidden lg:flex lg:flex-col w-64 bg-white shadow-xl border-r border-gray-100 fixed h-full z-40">
-        <div className="p-6 border-b border-gray-100">
-          <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-violet-600 to-purple-600 bg-clip-text text-transparent" 
-                style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
-              BillByteKOT AI
-            </h1>
-            <NotificationBell />
+      <aside className={`hidden lg:flex lg:flex-col ${collapsed ? 'w-20' : 'w-64'} bg-white shadow-xl border-r border-gray-100 fixed h-full z-40 transition-[width] duration-300 ease-in-out`}>
+        {/* Collapse / expand toggle */}
+        <button
+          type="button"
+          onClick={() => setCollapsed((value) => !value)}
+          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          aria-expanded={!collapsed}
+          data-testid="sidebar-toggle"
+          className="absolute -right-3 top-8 z-50 flex h-6 w-6 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 shadow-md transition-colors hover:bg-violet-50 hover:text-violet-600"
+        >
+          {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
+        </button>
+
+        <div className={`border-b border-gray-100 ${collapsed ? 'px-3 py-6' : 'p-6'}`}>
+          <div className={`flex items-center ${collapsed ? 'justify-center' : 'justify-between'}`}>
+            {collapsed ? (
+              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 text-sm font-bold text-white"
+                    style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                BK
+              </span>
+            ) : (
+              <>
+                <h1 className="text-2xl font-bold bg-gradient-to-r from-violet-600 to-purple-600 bg-clip-text text-transparent" 
+                    style={{ fontFamily: 'Space Grotesk, sans-serif' }}>
+                  BillByteKOT AI
+                </h1>
+                <NotificationBell />
+              </>
+            )}
           </div>
-          <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
-            <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-            {user?.role?.toUpperCase()}
-          </p>
+          {!collapsed && (
+            <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
+              <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+              {user?.role?.toUpperCase()}
+            </p>
+          )}
         </div>
 
-        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+        <nav className={`flex-1 space-y-1 overflow-y-auto overflow-x-hidden py-4 ${collapsed ? 'px-2' : 'px-4'}`}>
           {navItems.map((item) => {
             if (item.adminOnly && user?.role !== 'admin') return null;
             const isActive = location.pathname === item.path;
             return (
-              <Link key={item.path} to={item.path} data-testid={`nav-${item.label.toLowerCase()}`}>
-                <div className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${
+              <Link key={item.path} to={item.path} data-testid={`nav-${item.label.toLowerCase()}`} title={collapsed ? item.label : undefined}>
+                <div className={`flex items-center rounded-xl transition-all duration-200 ${
+                  collapsed ? 'justify-center px-0 py-3' : 'gap-3 px-4 py-3'
+                } ${
                   isActive
                     ? 'bg-gradient-to-r from-violet-600 to-purple-600 text-white shadow-lg shadow-violet-200'
                     : 'text-gray-600 hover:bg-violet-50 hover:text-violet-600'
                 }`}>
-                  <item.icon className="w-5 h-5" />
-                  <span className="font-medium">{item.label}</span>
-                  {item.path === '/subscription' && !user?.subscription_active && (
+                  <item.icon className="w-5 h-5 shrink-0" />
+                  {!collapsed && <span className="font-medium">{item.label}</span>}
+                  {!collapsed && item.path === '/subscription' && !user?.subscription_active && (
                     <span className="ml-auto text-xs bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full">PRO</span>
                   )}
                 </div>
@@ -83,14 +118,22 @@ const Layout = ({ user, children }) => {
           })}
         </nav>
 
-        <div className="p-4 border-t border-gray-100">
-          <div className="px-4 py-3 bg-gradient-to-r from-violet-50 to-purple-50 rounded-xl mb-3">
-            <p className="text-sm font-semibold text-gray-800">{user?.username}</p>
-            <p className="text-xs text-gray-500 truncate">{user?.email}</p>
-          </div>
-          <Button onClick={handleLogout} variant="outline" className="w-full hover:bg-red-50 hover:text-red-600 hover:border-red-200" data-testid="logout-button">
-            <LogOut className="w-4 h-4 mr-2" />
-            Logout
+        <div className={`border-t border-gray-100 ${collapsed ? 'p-2' : 'p-4'}`}>
+          {!collapsed && (
+            <div className="px-4 py-3 bg-gradient-to-r from-violet-50 to-purple-50 rounded-xl mb-3">
+              <p className="text-sm font-semibold text-gray-800">{user?.username}</p>
+              <p className="text-xs text-gray-500 truncate">{user?.email}</p>
+            </div>
+          )}
+          <Button
+            onClick={handleLogout}
+            variant="outline"
+            title={collapsed ? 'Logout' : undefined}
+            className={`w-full hover:bg-red-50 hover:text-red-600 hover:border-red-200 ${collapsed ? 'px-0' : ''}`}
+            data-testid="logout-button"
+          >
+            <LogOut className={`w-4 h-4 ${collapsed ? '' : 'mr-2'}`} />
+            {!collapsed && 'Logout'}
           </Button>
         </div>
       </aside>
@@ -210,7 +253,7 @@ const Layout = ({ user, children }) => {
       </nav>
 
       {/* Main Content */}
-      <main className="flex-1 lg:ml-64 min-h-screen overflow-x-hidden">
+      <main className={`flex-1 min-h-screen overflow-x-hidden transition-[margin] duration-300 ease-in-out ${collapsed ? 'lg:ml-20' : 'lg:ml-64'}`}>
         {/* Spacer for mobile header */}
         <div className="lg:hidden h-14"></div>
         

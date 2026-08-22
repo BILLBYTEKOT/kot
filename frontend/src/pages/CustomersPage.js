@@ -38,8 +38,8 @@ const CustomersPage = ({ user }) => {
 
   return (
     <Layout user={user}>
-      <main className="min-h-screen bg-slate-50 p-4 text-slate-900 md:p-8">
-        <div className="mx-auto max-w-7xl space-y-6">
+      <div className="text-slate-900">
+        <div className="w-full space-y-6">
           <header className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
             <div>
               <p className="text-sm font-semibold uppercase tracking-wider text-indigo-600">Customer growth</p>
@@ -78,7 +78,7 @@ const CustomersPage = ({ user }) => {
             )}
           </section>
         </div>
-      </main>
+      </div>
     </Layout>
   );
 };
