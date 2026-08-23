@@ -1,6 +1,4 @@
-"""
-Custom Hook for Super Admin Authentication
-"""
+// Custom hook for super admin authentication.
 
 import { useState, useCallback, useEffect } from 'react';
 import axios from 'axios';
@@ -8,6 +6,7 @@ import { API } from '../App';
 
 export const useSuperAdminAuth = () => {
   const [authenticated, setAuthenticated] = useState(false);
+  const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [adminToken, setAdminToken] = useState(() => {
@@ -30,6 +29,7 @@ export const useSuperAdminAuth = () => {
       
       if (response.status === 200) {
         setAuthenticated(true);
+        setUser(response.data.user || { name: 'Super Admin', role: 'super_admin' });
         setAdminToken(token);
         localStorage.setItem('super_admin_token', token);
         setError(null);
@@ -57,6 +57,7 @@ export const useSuperAdminAuth = () => {
       if (response.data.token) {
         const token = response.data.token;
         setAuthenticated(true);
+        setUser(response.data.user || { name: username, role: 'super_admin' });
         setAdminToken(token);
         localStorage.setItem('super_admin_token', token);
         return { success: true };

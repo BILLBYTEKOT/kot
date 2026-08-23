@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import axios from 'axios';
 import { API } from '../App';
-import { useToast } from './useToast';
+import { useToast } from './use-toast';
 
 export const useCampaigns = (token) => {
   const [campaigns, setCampaigns] = useState([]);

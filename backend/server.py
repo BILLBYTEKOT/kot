@@ -14152,17 +14152,42 @@ def verify_super_admin(username: str, password: str) -> bool:
         return True
     return False
 
-@api_router.get("/super-admin/login")
-async def super_admin_login(username: str, password: str):
-    """Validate super admin credentials"""
+@api_router.post("/super-admin/login")
+async def super_admin_login(credentials: dict = Body(...)):
+    """Validate super admin credentials and issue a short-lived admin token."""
+    username = credentials.get("username", "")
+    password = credentials.get("password", "")
     if not verify_super_admin(username, password):
         raise HTTPException(status_code=403, detail="Invalid super admin credentials")
-    return {"success": True}
+    token = create_access_token({"user_id": "super-admin", "role": "super_admin", "admin": True})
+    return {"success": True, "token": token, "user": {"name": username, "email": "Super Admin", "role": "super_admin"}}
+
+@api_router.get("/super-admin/verify")
+async def verify_super_admin_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    """Verify the super admin session token."""
+    try:
+        payload = jwt.decode(credentials.credentials, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+    except Exception:
+        raise HTTPException(status_code=401, detail="Invalid or expired admin token")
+    if payload.get("role") != "super_admin" or not payload.get("admin"):
+        raise HTTPException(status_code=403, detail="Super admin access required")
+    return {"valid": True, "user": {"name": SUPER_ADMIN_USERNAME, "email": "Super Admin", "role": "super_admin"}}
 
 @api_router.get("/super-admin/dashboard")
-async def get_super_admin_dashboard(username: str, password: str):
-    """Get complete system overview - Site Owner Only"""
-    if not verify_super_admin(username, password):
+async def get_super_admin_dashboard(
+    username: Optional[str] = None,
+    password: Optional[str] = None,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False))
+):
+    """Get complete system overview - Site Owner Only."""
+    token_valid = False
+    if credentials:
+        try:
+            payload = jwt.decode(credentials.credentials, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+            token_valid = payload.get("role") == "super_admin" and payload.get("admin") is True
+        except Exception:
+            token_valid = False
+    if not token_valid and not verify_super_admin(username or "", password or ""):
         raise HTTPException(status_code=403, detail="Invalid super admin credentials")
     
     # Get all users

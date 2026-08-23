@@ -14,16 +14,16 @@ import { useSuperAdminAuth } from '../hooks/useSuperAdminAuth';
 import { useSuperAdminDashboard } from '../hooks/useSuperAdminDashboard';
 
 const SuperAdminDashboard = () => {
-  const { authenticated, user, login, logout, loading: authLoading } = useSuperAdminAuth();
-  const { dashboardData, loading: dashboardLoading, fetchDashboard } = useSuperAdminDashboard();
+  const { authenticated, user, token, login, logout, loading: authLoading } = useSuperAdminAuth();
+  const {
+    summary: dashboardData,
+    metrics,
+    loading: dashboardLoading,
+    refreshing,
+    refreshDashboard,
+  } = useSuperAdminDashboard(token);
   const [activeTab, setActiveTab] = useState('overview');
   const [sidebarOpen, setSidebarOpen] = useState(true);
-
-  useEffect(() => {
-    if (authenticated) {
-      fetchDashboard();
-    }
-  }, [authenticated]);
 
   if (authLoading) {
     return (
@@ -50,10 +50,10 @@ const SuperAdminDashboard = () => {
   ];
 
   const stats = [
-    { label: 'Total Users', value: dashboardData?.totalUsers || 0, icon: Users, color: 'blue' },
-    { label: 'Active Subscriptions', value: dashboardData?.activeSubscriptions || 0, icon: TrendingUp, color: 'green' },
-    { label: 'Revenue (₹)', value: dashboardData?.revenue || 0, icon: DollarSign, color: 'purple' },
-    { label: 'System Health', value: '99.9%', icon: Shield, color: 'red' }
+    { label: 'Total Users', value: dashboardData?.overview?.total_users || 0, icon: Users, color: 'blue' },
+    { label: 'Active Subscriptions', value: dashboardData?.overview?.active_subscriptions || 0, icon: TrendingUp, color: 'green' },
+    { label: 'Orders · 30 days', value: dashboardData?.overview?.total_orders_30d || 0, icon: Activity, color: 'purple' },
+    { label: 'Open Tickets', value: dashboardData?.overview?.open_tickets || 0, icon: Shield, color: 'red' }
   ];
 
   return (

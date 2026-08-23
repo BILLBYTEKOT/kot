@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import axios from 'axios';
 import { API } from '../App';
-import { useToast } from './useToast';
+import { useToast } from './use-toast';
 
 export const useSuperAdminDashboard = (token) => {
   const [summary, setSummary] = useState(null);
