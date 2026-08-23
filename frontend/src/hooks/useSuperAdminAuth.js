@@ -80,6 +80,7 @@ export const useSuperAdminAuth = () => {
 
   return {
     authenticated,
+    user,
     loading,
     error,
     token: adminToken,
