@@ -49,12 +49,25 @@ export const useSuperAdminAuth = () => {
       setLoading(true);
       setError(null);
 
-      const response = await axios.post(`${API}/super-admin/login`, {
-        username,
-        password
-      });
+      let response;
+      try {
+        response = await axios.post(`${API}/super-admin/login`, {
+          username,
+          password
+        });
+      } catch (requestError) {
+        // Older deployed API instances expose this legacy endpoint as GET.
+        // Keep login working while the backend pool rolls forward.
+        if ([404, 405].includes(requestError.response?.status)) {
+          response = await axios.get(`${API}/super-admin/login`, {
+            params: { username, password }
+          });
+        } else {
+          throw requestError;
+        }
+      }
 
-      if (response.data.token) {
+      if (response.data?.token) {
         const token = response.data.token;
         setAuthenticated(true);
         setUser(response.data.user || { name: username, role: 'super_admin' });
