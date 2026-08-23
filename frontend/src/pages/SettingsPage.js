@@ -1621,19 +1621,32 @@ const SettingsPage = ({ user }) => {
             </div>
 
             <div>
-              <Label className="mb-3 block">Thermal Print Format</Label>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <Label className="block text-base">Invoice design</Label>
+                  <p className="mt-1 text-sm text-gray-500">Choose the design customers see when you share an invoice link on WhatsApp.</p>
+                </div>
+                <span className="rounded-full bg-violet-50 px-3 py-1 text-xs font-semibold text-violet-700">Shared invoice links</span>
+              </div>
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
                 {themes.length > 0 ? themes.map((theme) => (
                   <button
                     key={theme.id}
                     type="button"
                     onClick={() => setBusinessSettings({ ...businessSettings, receipt_theme: theme.id })}
+                    data-testid={`invoice-design-${theme.id}`}
+                    aria-pressed={businessSettings.receipt_theme === theme.id}
                     className={`p-4 border-2 rounded-lg text-left transition-all ${
                       businessSettings.receipt_theme === theme.id
                         ? 'border-violet-600 bg-violet-50'
                         : 'border-gray-200 hover:border-gray-300'
                     }`}
                   >
+                    <div className={`mb-3 h-16 rounded-md border border-gray-200 bg-white p-2 shadow-sm ${businessSettings.receipt_theme === theme.id ? 'ring-2 ring-violet-200' : ''}`}>
+                      <div className={`h-2 w-2/5 rounded ${theme.id === 'modern' ? 'bg-indigo-500' : theme.id === 'elegant' ? 'bg-amber-800' : theme.id === 'minimal' ? 'bg-gray-300' : theme.id === 'compact' ? 'bg-emerald-600' : theme.id === 'detailed' ? 'bg-violet-600' : 'bg-gray-800'}`}></div>
+                      <div className="mt-2 h-1.5 w-full rounded bg-gray-100"></div><div className="mt-1.5 h-1.5 w-4/5 rounded bg-gray-100"></div>
+                      <div className="mt-2 flex justify-between"><span className="h-1.5 w-1/4 rounded bg-gray-200"></span><span className="h-1.5 w-1/5 rounded bg-gray-300"></span></div>
+                    </div>
                     <p className="font-medium text-sm">{theme.name}</p>
                     <p className="text-xs text-gray-500 mt-1">{theme.description}</p>
                     <p className="text-xs text-violet-600 mt-1 font-medium">{theme.recommended_width || '80mm'}</p>
