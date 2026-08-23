@@ -10950,6 +10950,20 @@ async def receipt_public_data(tracking_token: str):
         "restaurant_phone": business.get("phone", ""),
         "restaurant_address": business.get("address", ""),
         "footer_message": business.get("footer_message", "Thank you for dining with us!"),
+        "invoice_presentation": {
+            "receipt_theme": business.get("receipt_theme", "classic") if business.get("receipt_theme") in {"classic", "modern", "minimal", "elegant", "compact", "detailed"} else "classic",
+            "logo_url": business.get("logo_url", "") if isinstance(business.get("logo_url", ""), str) and len(business.get("logo_url", "")) <= 700000 else "",
+            "tagline": business.get("tagline", ""),
+            "email": business.get("email", ""),
+            "website": business.get("website", ""),
+            "gstin": business.get("gstin", ""),
+            "fssai": business.get("fssai", ""),
+            "print_customization": {
+                key: business.get("print_customization", {}).get(key)
+                for key in ("show_logo", "show_address", "show_phone", "show_email", "show_website", "show_gstin", "show_fssai", "show_tagline", "show_customer_name", "show_table_number")
+                if key in business.get("print_customization", {})
+            }
+        },
         "items": sanitized_items,
     }
 
