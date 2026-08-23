@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 import { DollarSign, History, Save } from 'lucide-react';
 import { usePricing } from '../../hooks/usePricing';
 
-export const PricingManagement = ({ token }) => {
+const PricingManagement = ({ token }) => {
   const { pricing, history, loading, updatePricing } = usePricing(token);
   const [showHistory, setShowHistory] = useState(false);
   const [changes, setChanges] = useState({});
@@ -183,3 +183,5 @@ export const PricingManagement = ({ token }) => {
     </div>
   );
 };
+
+export default PricingManagement;

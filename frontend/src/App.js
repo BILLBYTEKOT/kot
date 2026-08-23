@@ -45,7 +45,7 @@ import ContactPage from './pages/ContactPage';
 import OrderDisplayPage from './pages/OrderDisplayPage';
 import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
 import HelpPage from './pages/HelpPage';
-import SuperAdminPage from './pages/SuperAdminPage';
+import SuperAdminDashboard from './pages/SuperAdminDashboard';
 import OpsPanel from './pages/OpsPanel';
 import ReferEarnPage from './pages/ReferEarnPage';
 import RestaurantBillingSoftwarePage from './pages/RestaurantBillingSoftwarePage';
@@ -1007,8 +1007,8 @@ function App() {
           <Route path="/privacy" element={<PrivacyPolicyPage />} />
           <Route path="/help" element={<PrivateRoute isAuthChecking={isAuthChecking}><HelpPage user={user} /></PrivateRoute>} />
           <Route path="/ops" element={<OpsPanel />} />
-          <Route path="/super-admin" element={<SuperAdminPage />} />
-          <Route path="/admin" element={<SuperAdminPage />} />
+<Route path="/super-admin" element={<SuperAdminDashboard />} />
+  <Route path="/admin" element={<SuperAdminDashboard />} />
           <Route path="/pwa" element={<PWAHomePage />} />
           <Route path="/city/:citySlug" element={<CityLandingPage />} />
           <Route path="/compare/:comparisonSlug" element={<ComparisonPage />} />

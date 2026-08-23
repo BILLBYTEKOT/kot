@@ -1,13 +1,14 @@
 import { useState, useCallback, useEffect } from 'react';
 import axios from 'axios';
 import { API } from '../App';
-import { useToast } from './useToast';
+import { useToast } from './use-toast';
 
 export const useSuperAdminDashboard = (token) => {
   const [summary, setSummary] = useState(null);
   const [metrics, setMetrics] = useState({});
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState(null);
   const { toast } = useToast();
 
   const fetchDashboardSummary = useCallback(async () => {
@@ -17,7 +18,9 @@ export const useSuperAdminDashboard = (token) => {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       setSummary(response.data);
+      setError(null);
     } catch (error) {
+      setError(error.response?.data?.detail || 'Failed to fetch dashboard summary');
       toast.error('Failed to fetch dashboard summary');
     } finally {
       setLoading(false);
@@ -81,6 +84,7 @@ export const useSuperAdminDashboard = (token) => {
   return {
     summary,
     metrics,
+    error,
     loading,
     refreshing,
     fetchDashboardSummary,
