@@ -874,7 +874,6 @@ const MenuPage = ({ user }) => {
       setBulkUpdateOpen(false);
       setSelectedItems(new Set());
       setBulkEditMode(false);
-      fetchMenuItems();
     } catch (error) {
       setBulkUpdateErrors(['Some items could not be saved. Your changes are still here so you can try again.']);
       toast.error('Could not save all changes.');
@@ -1421,7 +1420,7 @@ const MenuPage = ({ user }) => {
                   setBulkEditMode(!bulkEditMode);
                   setSelectedItems(new Set());
                 }}
-                className={bulkEditMode ? 'bg-violet-600 hover:bg-violet-700' : ''}
+                className={bulkEditMode ? 'bg-violet-600 text-white hover:bg-violet-700' : 'border-violet-300 bg-violet-50 text-violet-700 hover:bg-violet-100'}
                 data-testid="bulk-edit-toggle"
                 title="Select multiple items and update their details together"
               >
@@ -1786,7 +1785,7 @@ const MenuPage = ({ user }) => {
         {/* Bulk edit actions */}
         {bulkEditMode && (
           <Card className="p-4 bg-violet-50 border-violet-200">
-            <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex min-w-0 items-center justify-between gap-3 flex-wrap">
               <div className="flex items-center gap-3">
                 <span className="font-medium">{selectedItems.size ? `${selectedItems.size} items selected` : 'Edit all menu items in one table'}</span>
                 <Button
@@ -1809,6 +1808,7 @@ const MenuPage = ({ user }) => {
                 <Button
                   size="sm"
                   variant="default"
+                  className="shrink-0 bg-violet-600 font-semibold text-white shadow-sm hover:bg-violet-700"
                   onClick={openBulkUpdate}
                   data-testid="bulk-update-button"
                 >
@@ -1844,9 +1844,13 @@ const MenuPage = ({ user }) => {
           </Card>
         )}
 
-        {bulkUpdateOpen && (
-          <Card className="border-violet-200 shadow-lg" data-testid="bulk-update-workspace">
-            <CardHeader className="sticky top-0 z-10 border-b bg-background/95 backdrop-blur">
+        <Dialog open={bulkUpdateOpen} onOpenChange={(open) => { if (!bulkUpdating) setBulkUpdateOpen(open); }}>
+          <DialogContent className="flex h-[92vh] w-[calc(100vw-2rem)] max-w-[1500px] flex-col gap-0 overflow-hidden border-violet-200 p-0" data-testid="bulk-update-workspace">
+            <DialogHeader className="shrink-0 border-b bg-background px-6 py-4">
+              <DialogTitle>Edit menu items</DialogTitle>
+            </DialogHeader>
+            <Card className="flex min-h-0 flex-1 flex-col border-0 shadow-none">
+            <CardHeader className="shrink-0 border-b bg-background px-6 py-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <CardTitle>Edit menu items</CardTitle>
@@ -1860,13 +1864,14 @@ const MenuPage = ({ user }) => {
                 <Button type="button" variant="outline" onClick={() => { const visibleIds = filteredAndSortedItems.map(item => item.id); setBulkDrafts(prev => Object.fromEntries(Object.entries(prev).map(([id, item]) => visibleIds.includes(Number(id)) || visibleIds.includes(id) ? [id, { ...item, available: true }] : [id, item]))); }}>Make visible available</Button>
               </div>
             </CardHeader>
-            <CardContent className="p-0">
+            <CardContent className="min-h-0 flex-1 overflow-auto p-0">
               {bulkUpdateErrors.length > 0 && <div className="m-4 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive" role="alert">{bulkUpdateErrors.map(error => <p key={error}>{error}</p>)}</div>}
-              <div className="max-h-[65vh] overflow-auto"><table className="min-w-[1180px] w-full text-sm"><thead className="sticky top-0 z-[1] bg-muted"><tr>{['Item name','Category','Price','Prep time','Available','Popular','Vegetarian','Spicy','Allergens'].map(label => <th key={label} className="whitespace-nowrap px-3 py-3 text-left font-semibold">{label}</th>)}</tr></thead><tbody>{Object.values(bulkDrafts).filter(item => selectedCategory === 'all' || item.category === selectedCategory).map(item => <tr key={item.id} className="border-t hover:bg-muted/40"><td className="min-w-64 px-3 py-2"><Input aria-label={`${item.name} item name`} value={item.name} onChange={e => updateBulkDraft(item.id, 'name', e.target.value)} /></td><td className="min-w-52 px-3 py-2"><select aria-label={`${item.name} category`} value={item.category} onChange={e => updateBulkDraft(item.id, 'category', e.target.value)} className="w-full rounded-md border bg-background px-2 py-2">{categories.filter(category => category.value !== 'all').map(category => <option key={category.value} value={category.value}>{category.label}</option>)}</select></td><td className="w-28 px-3 py-2"><Input type="number" min="0" step="0.01" value={item.price} onChange={e => updateBulkDraft(item.id, 'price', e.target.value)} /></td><td className="w-28 px-3 py-2"><Input type="number" min="0" step="1" value={item.preparation_time} onChange={e => updateBulkDraft(item.id, 'preparation_time', e.target.value)} /></td>{['available','is_popular','is_vegetarian','is_spicy'].map(field => <td key={field} className="w-32 px-3 py-2"><select aria-label={`${item.name} ${field}`} value={String(Boolean(item[field]))} onChange={e => updateBulkDraft(item.id, field, e.target.value === 'true')} className="w-full rounded-md border bg-background px-2 py-2"><option value="true">Yes</option><option value="false">No</option></select></td>)}<td className="min-w-56 px-3 py-2"><Input value={item.allergens} placeholder="None" onChange={e => updateBulkDraft(item.id, 'allergens', e.target.value)} /></td></tr>)}</tbody></table></div>
+              <div className="min-w-0 overflow-auto"><table className="min-w-[1180px] w-full text-sm"><thead className="sticky top-0 z-[1] bg-muted"><tr>{['Item name','Category','Price','Prep time','Available','Popular','Vegetarian','Spicy','Allergens'].map(label => <th key={label} className="whitespace-nowrap px-3 py-3 text-left font-semibold">{label}</th>)}</tr></thead><tbody>{Object.values(bulkDrafts).filter(item => selectedCategory === 'all' || item.category === selectedCategory).map(item => <tr key={item.id} className="border-t hover:bg-muted/40"><td className="min-w-64 px-3 py-2"><Input aria-label={`${item.name} item name`} value={item.name} onChange={e => updateBulkDraft(item.id, 'name', e.target.value)} /></td><td className="min-w-52 px-3 py-2"><select aria-label={`${item.name} category`} value={item.category} onChange={e => updateBulkDraft(item.id, 'category', e.target.value)} className="w-full rounded-md border bg-background px-2 py-2">{categories.filter(category => category.value !== 'all').map(category => <option key={category.value} value={category.value}>{category.label}</option>)}</select></td><td className="w-28 px-3 py-2"><Input type="number" min="0" step="0.01" value={item.price} onChange={e => updateBulkDraft(item.id, 'price', e.target.value)} /></td><td className="w-28 px-3 py-2"><Input type="number" min="0" step="1" value={item.preparation_time} onChange={e => updateBulkDraft(item.id, 'preparation_time', e.target.value)} /></td>{['available','is_popular','is_vegetarian','is_spicy'].map(field => <td key={field} className="w-32 px-3 py-2"><select aria-label={`${item.name} ${field}`} value={String(Boolean(item[field]))} onChange={e => updateBulkDraft(item.id, field, e.target.value === 'true')} className="w-full rounded-md border bg-background px-2 py-2"><option value="true">Yes</option><option value="false">No</option></select></td>)}<td className="min-w-56 px-3 py-2"><Input value={item.allergens} placeholder="None" onChange={e => updateBulkDraft(item.id, 'allergens', e.target.value)} /></td></tr>)}</tbody></table></div>
             </CardContent>
-            <div className="sticky bottom-0 flex flex-wrap items-center justify-between gap-3 border-t bg-background/95 p-4 backdrop-blur"><p className="text-sm text-muted-foreground">Scroll sideways for more columns.</p><div className="flex gap-2"><Button variant="outline" disabled={bulkUpdating} onClick={() => setBulkUpdateOpen(false)}>Cancel</Button><Button disabled={bulkUpdating} onClick={applyBulkUpdate} data-testid="bulk-update-apply-button">{bulkUpdating ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Saving...</> : 'Save changes'}</Button></div></div>
-          </Card>
-        )}
+            <div className="shrink-0 border-t bg-background p-4"><div className="flex flex-wrap items-center justify-between gap-3"><p className="text-sm text-muted-foreground">Edit cells, then save once. Scroll inside the table to see every column.</p><div className="flex gap-2"><Button type="button" variant="outline" disabled={bulkUpdating} onClick={() => setBulkUpdateOpen(false)}>Cancel</Button><Button type="button" disabled={bulkUpdating} onClick={applyBulkUpdate} data-testid="bulk-update-apply-button">{bulkUpdating ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Saving...</> : 'Save changes'}</Button></div></div></div>
+            </Card>
+          </DialogContent>
+        </Dialog>
 
         {/* Bulk Upload Component */}
         {['admin', 'manager'].includes(user?.role) && (
