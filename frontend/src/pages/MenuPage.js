@@ -1450,17 +1450,20 @@ const MenuPage = ({ user }) => {
               Counter Sale
             </Button>
 
-            {/* Bulk edit toggle */}
-            {['admin', 'cashier'].includes(user?.role) && menuItems.length > 0 && (
-              <Button 
-                variant="outline" 
+            {/* Bulk update entry point */}
+            {menuItems.length > 0 && (
+              <Button
+                variant={bulkEditMode ? "default" : "outline"}
                 onClick={() => {
                   setBulkEditMode(!bulkEditMode);
                   setSelectedItems(new Set());
                 }}
-                className={bulkEditMode ? 'bg-violet-100 text-violet-700' : ''}
+                className={bulkEditMode ? 'bg-violet-600 hover:bg-violet-700' : ''}
+                data-testid="bulk-edit-toggle"
+                title="Select multiple items and update their details together"
               >
-                {bulkEditMode ? 'Exit Bulk Edit' : 'Bulk Edit'}
+                <Edit className="w-4 h-4 mr-2" />
+                {bulkEditMode ? 'Done selecting' : 'Bulk Update'}
               </Button>
             )}
 
@@ -1820,9 +1823,26 @@ const MenuPage = ({ user }) => {
         {/* Bulk edit actions */}
         {bulkEditMode && selectedItems.size > 0 && (
           <Card className="p-4 bg-violet-50 border-violet-200">
-            <div className="flex items-center justify-between">
-              <span className="font-medium">{selectedItems.size} items selected</span>
-              <div className="flex gap-2">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div className="flex items-center gap-3">
+                <span className="font-medium">{selectedItems.size} items selected</span>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => {
+                    const visibleIds = filteredAndSortedItems.map(item => item.id);
+                    setSelectedItems(new Set(visibleIds));
+                  }}
+                >
+                  Select all visible
+                </Button>
+                {selectedItems.size > 0 && (
+                  <Button size="sm" variant="ghost" onClick={() => setSelectedItems(new Set())}>
+                    Clear
+                  </Button>
+                )}
+              </div>
+              <div className="flex gap-2 flex-wrap">
                 <Button
                   size="sm"
                   variant="default"
