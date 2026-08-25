@@ -48,20 +48,10 @@ const MenuPage = ({ user }) => {
   const [bulkEditMode, setBulkEditMode] = useState(false);
   const [selectedItems, setSelectedItems] = useState(new Set());
   const [bulkUpdateOpen, setBulkUpdateOpen] = useState(false);
-  const [bulkUpdateStep, setBulkUpdateStep] = useState('configure');
   const [bulkUpdating, setBulkUpdating] = useState(false);
   const [bulkUpdateErrors, setBulkUpdateErrors] = useState([]);
-  const [bulkUpdateData, setBulkUpdateData] = useState({
-    available: '',
-    is_popular: '',
-    is_vegetarian: '',
-    is_spicy: '',
-    priceMode: 'keep',
-    priceValue: '',
-    preparation_time: '',
-    category: '',
-    allergens: ''
-  });
+  const [bulkDrafts, setBulkDrafts] = useState({});
+  const [bulkOriginals, setBulkOriginals] = useState({});
   const [showFilters, setShowFilters] = useState(false);
   const [priceRange, setPriceRange] = useState({ min: '', max: '' });
   const [formData, setFormData] = useState({
@@ -851,71 +841,44 @@ const MenuPage = ({ user }) => {
     }
   };
 
-  const updateBulkField = (field, value) => {
-    setBulkUpdateData(prev => ({ ...prev, [field]: value }));
-    setBulkUpdateErrors([]);
-  };
-
   const openBulkUpdate = () => {
-    if (selectedItems.size === 0) return;
-    setBulkUpdateData({ available: '', is_popular: '', is_vegetarian: '', is_spicy: '', priceMode: 'keep', priceValue: '', preparation_time: '', category: '', allergens: '' });
+    const items = filteredAndSortedItems;
+    const originals = Object.fromEntries(items.map(item => [item.id, { ...item }]));
+    setBulkOriginals(originals);
+    setBulkDrafts(Object.fromEntries(items.map(item => [item.id, { ...item, price: item.price ?? '', preparation_time: item.preparation_time ?? 0, allergens: item.allergens ?? '', category: item.category ?? '' }])));
     setBulkUpdateErrors([]);
-    setBulkUpdateStep('configure');
     setBulkUpdateOpen(true);
   };
 
-  const getBulkChanges = () => {
-    const changes = {};
-    ['available', 'is_popular', 'is_vegetarian', 'is_spicy'].forEach(field => {
-      if (bulkUpdateData[field] !== '') changes[field] = bulkUpdateData[field] === 'true';
-    });
-    if (bulkUpdateData.priceMode === 'fixed' && bulkUpdateData.priceValue !== '') changes.price = Number(bulkUpdateData.priceValue);
-    if (bulkUpdateData.priceMode === 'percent' && bulkUpdateData.priceValue !== '') changes.priceAdjustment = Number(bulkUpdateData.priceValue);
-    if (bulkUpdateData.preparation_time !== '') changes.preparation_time = Number(bulkUpdateData.preparation_time);
-    if (bulkUpdateData.category.trim()) changes.category = bulkUpdateData.category.trim();
-    if (bulkUpdateData.allergens.trim()) changes.allergens = bulkUpdateData.allergens.trim();
-    return changes;
-  };
-
-  const reviewBulkUpdate = () => {
-    const errors = [];
-    if (bulkUpdateData.priceMode !== 'keep' && bulkUpdateData.priceValue === '') errors.push('Enter a price value or choose Keep existing.');
-    if (bulkUpdateData.priceMode !== 'keep' && Number.isNaN(Number(bulkUpdateData.priceValue))) errors.push('Price adjustment must be a valid number.');
-    if (bulkUpdateData.preparation_time !== '' && (!Number.isInteger(Number(bulkUpdateData.preparation_time)) || Number(bulkUpdateData.preparation_time) < 0)) errors.push('Preparation time must be a whole number of minutes.');
-    if (Object.keys(getBulkChanges()).length === 0) errors.push('Choose at least one field to update.');
-    setBulkUpdateErrors(errors);
-    if (!errors.length) setBulkUpdateStep('review');
+  const updateBulkDraft = (id, field, value) => {
+    setBulkDrafts(prev => ({ ...prev, [id]: { ...prev[id], [field]: value } }));
+    setBulkUpdateErrors([]);
   };
 
   const applyBulkUpdate = async () => {
     if (bulkUpdating) return;
-    const changes = getBulkChanges();
+    const drafts = Object.values(bulkDrafts);
+    const errors = drafts.flatMap(item => [
+      Number(item.price) < 0 ? `${item.name}: price cannot be negative.` : null,
+      Number(item.preparation_time) < 0 || !Number.isInteger(Number(item.preparation_time)) ? `${item.name}: preparation time must be whole minutes.` : null,
+      !String(item.name).trim() ? 'Every item needs a name.' : null
+    ].filter(Boolean));
+    if (errors.length) { setBulkUpdateErrors(errors); return; }
+    const changed = drafts.filter(item => JSON.stringify(item) !== JSON.stringify(bulkOriginals[item.id]));
+    if (!changed.length) { setBulkUpdateErrors(['Make at least one change before saving.']); return; }
     setBulkUpdating(true);
-    setBulkUpdateStep('applying');
     try {
-      await Promise.all(Array.from(selectedItems).map(id => {
-        const item = menuItems.find(menuItem => menuItem.id === id);
-        const nextItem = { ...item, ...changes };
-        if (changes.priceAdjustment !== undefined) {
-          nextItem.price = Math.max(0, Number(item.price) * (1 + changes.priceAdjustment / 100)).toFixed(2);
-          delete nextItem.priceAdjustment;
-        }
-        return apiWithRetry({ method: 'put', url: `${API}/menu/${id}`, data: nextItem, timeout: 10000 });
-      }));
-      toast.success(`${selectedItems.size} menu items updated successfully.`);
-      setMenuItems(prev => prev.map(item => selectedItems.has(item.id) ? { ...item, ...changes, ...(changes.priceAdjustment !== undefined ? { price: Math.max(0, Number(item.price) * (1 + changes.priceAdjustment / 100)).toFixed(2) } : {}) } : item));
+      await Promise.all(changed.map(item => apiWithRetry({ method: 'put', url: `${API}/menu/${item.id}`, data: item, timeout: 10000 })));
+      setMenuItems(prev => prev.map(item => bulkDrafts[item.id] ? { ...item, ...bulkDrafts[item.id] } : item));
+      toast.success(`${changed.length} menu item${changed.length === 1 ? '' : 's'} updated.`);
+      setBulkUpdateOpen(false);
       setSelectedItems(new Set());
       setBulkEditMode(false);
-      setBulkUpdateOpen(false);
-      setBulkUpdateStep('configure');
       fetchMenuItems();
     } catch (error) {
-      setBulkUpdateErrors(['Some items could not be updated. Your selection is still available so you can review and retry.']);
-      setBulkUpdateStep('review');
-      toast.error('Failed to update selected items.');
-    } finally {
-      setBulkUpdating(false);
-    }
+      setBulkUpdateErrors(['Some items could not be saved. Your changes are still here so you can try again.']);
+      toast.error('Could not save all changes.');
+    } finally { setBulkUpdating(false); }
   };
 
   const resetForm = () => {
@@ -1821,11 +1784,11 @@ const MenuPage = ({ user }) => {
         </div>
 
         {/* Bulk edit actions */}
-        {bulkEditMode && selectedItems.size > 0 && (
+        {bulkEditMode && (
           <Card className="p-4 bg-violet-50 border-violet-200">
             <div className="flex items-center justify-between gap-3 flex-wrap">
               <div className="flex items-center gap-3">
-                <span className="font-medium">{selectedItems.size} items selected</span>
+                <span className="font-medium">{selectedItems.size ? `${selectedItems.size} items selected` : 'Edit all menu items in one table'}</span>
                 <Button
                   size="sm"
                   variant="ghost"
@@ -1882,46 +1845,17 @@ const MenuPage = ({ user }) => {
         )}
 
         <Dialog open={bulkUpdateOpen} onOpenChange={(open) => { if (!bulkUpdating) setBulkUpdateOpen(open); }}>
-          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" data-testid="bulk-update-dialog">
+          <DialogContent className="max-w-[95vw] max-h-[92vh] overflow-hidden" data-testid="bulk-update-dialog">
             <DialogHeader>
-              <DialogTitle>Bulk update {selectedItems.size} menu items</DialogTitle>
+              <DialogTitle>Edit menu items</DialogTitle>
+              <p className="text-sm text-muted-foreground">Change anything directly in the table. Only changed rows will be saved.</p>
             </DialogHeader>
-            {bulkUpdateStep === 'configure' && (
-              <div className="flex flex-col gap-5">
-                <p className="text-sm text-muted-foreground">Choose only the fields you want to change. Everything else stays as-is.</p>
-                <section className="flex flex-col gap-3">
-                  <h3 className="font-semibold">Availability and flags</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    {['available', 'is_popular', 'is_vegetarian', 'is_spicy'].map((field) => (
-                      <label key={field} className="flex items-center justify-between rounded-lg border p-3 text-sm">
-                        <span>{field === 'available' ? 'Available' : field.replace('is_', '').replace('_', ' ')}</span>
-                        <select value={bulkUpdateData[field]} onChange={(e) => updateBulkField(field, e.target.value)} className="rounded-md border bg-background px-2 py-1 capitalize">
-                          <option value="">Keep existing</option><option value="true">Yes</option><option value="false">No</option>
-                        </select>
-                      </label>
-                    ))}
-                  </div>
-                </section>
-                <section className="flex flex-col gap-3">
-                  <h3 className="font-semibold">Pricing and prep time</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <label className="flex flex-col gap-1 text-sm"><span>Price update</span><select value={bulkUpdateData.priceMode} onChange={(e) => updateBulkField('priceMode', e.target.value)} className="rounded-md border bg-background px-3 py-2"><option value="keep">Keep existing</option><option value="fixed">Set fixed price</option><option value="percent">Adjust by percentage</option></select></label>
-                    <label className="flex flex-col gap-1 text-sm"><span>Price value</span><Input type="number" min="0" step="0.01" disabled={bulkUpdateData.priceMode === 'keep'} value={bulkUpdateData.priceValue} onChange={(e) => updateBulkField('priceValue', e.target.value)} placeholder="e.g. 10" /></label>
-                    <label className="flex flex-col gap-1 text-sm"><span>Preparation time (minutes)</span><Input type="number" min="0" step="1" value={bulkUpdateData.preparation_time} onChange={(e) => updateBulkField('preparation_time', e.target.value)} placeholder="Keep existing" /></label>
-                  </div>
-                </section>
-                <section className="flex flex-col gap-3">
-                  <h3 className="font-semibold">Category and allergens</h3>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3"><label className="flex flex-col gap-1 text-sm"><span>Replace category</span><Input value={bulkUpdateData.category} onChange={(e) => updateBulkField('category', e.target.value)} placeholder="Keep existing" /></label><label className="flex flex-col gap-1 text-sm"><span>Replace allergens</span><Input value={bulkUpdateData.allergens} onChange={(e) => updateBulkField('allergens', e.target.value)} placeholder="Keep existing" /></label></div>
-                </section>
-                {bulkUpdateErrors.length > 0 && <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive" role="alert">{bulkUpdateErrors.map(error => <p key={error}>{error}</p>)}</div>}
-                <div className="flex justify-end gap-2"><Button variant="outline" onClick={() => setBulkUpdateOpen(false)}>Cancel</Button><Button onClick={reviewBulkUpdate} data-testid="bulk-update-review-button">Review changes</Button></div>
-              </div>
-            )}
-            {bulkUpdateStep === 'review' && (
-              <div className="flex flex-col gap-5"><div className="rounded-lg bg-muted p-4"><p className="font-semibold">Ready to update {selectedItems.size} items</p><p className="mt-1 text-sm text-muted-foreground">The following changes will be applied to every selected item:</p><ul className="mt-3 list-disc pl-5 text-sm">{Object.entries(getBulkChanges()).map(([field, value]) => <li key={field}>{field === 'priceAdjustment' ? `Price: ${value}% adjustment` : `${field.replaceAll('_', ' ')}: ${String(value)}`}</li>)}</ul></div>{bulkUpdateErrors.length > 0 && <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive" role="alert">{bulkUpdateErrors.map(error => <p key={error}>{error}</p>)}</div>}<div className="flex justify-end gap-2"><Button variant="outline" onClick={() => { setBulkUpdateErrors([]); setBulkUpdateStep('configure'); }}>Back</Button><Button onClick={applyBulkUpdate} data-testid="bulk-update-apply-button">Apply updates</Button></div></div>
-            )}
-            {bulkUpdateStep === 'applying' && <div className="flex flex-col items-center gap-3 py-8 text-center"><Loader2 className="h-8 w-8 animate-spin text-violet-600" /><p className="font-semibold">Updating selected items...</p><p className="text-sm text-muted-foreground">Please keep this window open.</p></div>}
+            <div className="flex flex-col gap-4 min-h-0">
+              <div className="flex items-center justify-between rounded-lg bg-muted px-4 py-3 text-sm"><span>{Object.values(bulkDrafts).length} items selected</span><span className="font-medium">Review each row, then click Save changes</span></div>
+              {bulkUpdateErrors.length > 0 && <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive" role="alert">{bulkUpdateErrors.map(error => <p key={error}>{error}</p>)}</div>}
+              <div className="overflow-auto rounded-lg border"><table className="w-full min-w-[1100px] text-sm"><thead className="sticky top-0 bg-muted"><tr>{['Item name','Category','Price','Prep time','Available','Popular','Vegetarian','Spicy','Allergens'].map(label => <th key={label} className="whitespace-nowrap px-3 py-3 text-left font-semibold">{label}</th>)}</tr></thead><tbody>{Object.values(bulkDrafts).map(item => <tr key={item.id} className="border-t"><td className="px-3 py-2"><Input aria-label={`${item.name} item name`} value={item.name} onChange={e => updateBulkDraft(item.id, 'name', e.target.value)} /></td><td className="px-3 py-2"><Input value={item.category} onChange={e => updateBulkDraft(item.id, 'category', e.target.value)} /></td><td className="w-28 px-3 py-2"><Input type="number" min="0" step="0.01" value={item.price} onChange={e => updateBulkDraft(item.id, 'price', e.target.value)} /></td><td className="w-28 px-3 py-2"><Input type="number" min="0" step="1" value={item.preparation_time} onChange={e => updateBulkDraft(item.id, 'preparation_time', e.target.value)} /></td>{['available','is_popular','is_vegetarian','is_spicy'].map(field => <td key={field} className="px-3 py-2"><select aria-label={`${item.name} ${field}`} value={String(Boolean(item[field]))} onChange={e => updateBulkDraft(item.id, field, e.target.value === 'true')} className="w-full rounded-md border bg-background px-2 py-2"><option value="true">Yes</option><option value="false">No</option></select></td>)}<td className="px-3 py-2"><Input value={item.allergens} placeholder="None" onChange={e => updateBulkDraft(item.id, 'allergens', e.target.value)} /></td></tr>)}</tbody></table></div>
+              <div className="flex items-center justify-end gap-2"><Button variant="outline" disabled={bulkUpdating} onClick={() => setBulkUpdateOpen(false)}>Cancel</Button><Button disabled={bulkUpdating} onClick={applyBulkUpdate} data-testid="bulk-update-apply-button">{bulkUpdating ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Saving...</> : 'Save changes'}</Button></div>
+            </div>
           </DialogContent>
         </Dialog>
 
