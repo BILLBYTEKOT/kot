@@ -52,6 +52,9 @@ const MenuPage = ({ user }) => {
   const [bulkUpdateErrors, setBulkUpdateErrors] = useState([]);
   const [bulkDrafts, setBulkDrafts] = useState({});
   const [bulkOriginals, setBulkOriginals] = useState({});
+  const [bulkFailedIds, setBulkFailedIds] = useState([]);
+  const [bulkOperation, setBulkOperation] = useState(null);
+  const bulkAbortRef = useRef(null);
   const [showFilters, setShowFilters] = useState(false);
   const [priceRange, setPriceRange] = useState({ min: '', max: '' });
   const [formData, setFormData] = useState({
@@ -220,7 +223,8 @@ const MenuPage = ({ user }) => {
         
         const freshItems = Array.isArray(response.data) ? response.data : [];
         
-        // Merge with local state, prioritizing server state
+        // Never replace active bulk drafts while the editor has unsaved work.
+        if (bulkUpdateOpen || bulkUpdating) return;
         setMenuItems(prevItems => {
           const merged = [...freshItems];
           const freshIds = new Set(freshItems.map(item => item.id));
@@ -841,11 +845,20 @@ const MenuPage = ({ user }) => {
     }
   };
 
+  const bulkFields = ['name', 'category', 'price', 'preparation_time', 'available', 'is_popular', 'is_vegetarian', 'is_spicy', 'allergens'];
+  const normalizeBulkItem = (item) => Object.fromEntries(bulkFields.map(field => {
+    let value = item[field] ?? (field === 'allergens' ? '' : field === 'preparation_time' ? 15 : '');
+    if (['price', 'preparation_time'].includes(field)) value = value === '' ? '' : Number(value);
+    if (['available', 'is_popular', 'is_vegetarian', 'is_spicy'].includes(field)) value = Boolean(value);
+    return [field, value];
+  }));
+  const bulkChanged = (id) => bulkFields.some(field => normalizeBulkItem(bulkDrafts[id] || {})[field] !== normalizeBulkItem(bulkOriginals[id] || {})[field]);
+
   const openBulkUpdate = () => {
-    const items = menuItems;
-    const originals = Object.fromEntries(items.map(item => [item.id, { ...item }]));
+    const originals = Object.fromEntries(menuItems.map(item => [item.id, normalizeBulkItem(item)]));
     setBulkOriginals(originals);
-    setBulkDrafts(Object.fromEntries(items.map(item => [item.id, { ...item, price: item.price ?? '', preparation_time: item.preparation_time ?? 0, allergens: item.allergens ?? '', category: item.category ?? '' }])));
+    setBulkDrafts(Object.fromEntries(menuItems.map(item => [item.id, { ...item, ...normalizeBulkItem(item) }])));
+    setBulkFailedIds([]);
     setBulkUpdateErrors([]);
     setBulkUpdateOpen(true);
   };
@@ -857,28 +870,43 @@ const MenuPage = ({ user }) => {
 
   const applyBulkUpdate = async () => {
     if (bulkUpdating) return;
-    const drafts = Object.values(bulkDrafts);
-    const errors = drafts.flatMap(item => [
+    const changed = Object.values(bulkDrafts).filter(item => bulkChanged(item.id));
+    const errors = changed.flatMap(item => [
       Number(item.price) < 0 ? `${item.name}: price cannot be negative.` : null,
       Number(item.preparation_time) < 0 || !Number.isInteger(Number(item.preparation_time)) ? `${item.name}: preparation time must be whole minutes.` : null,
-      !String(item.name).trim() ? 'Every item needs a name.' : null
+      !String(item.name).trim() ? `${item.id}: every item needs a name.` : null
     ].filter(Boolean));
     if (errors.length) { setBulkUpdateErrors(errors); return; }
-    const changed = drafts.filter(item => JSON.stringify(item) !== JSON.stringify(bulkOriginals[item.id]));
     if (!changed.length) { setBulkUpdateErrors(['Make at least one change before saving.']); return; }
-    setBulkUpdating(true);
-    try {
-      await Promise.all(changed.map(item => apiWithRetry({ method: 'put', url: `${API}/menu/${item.id}`, data: item, timeout: 10000 })));
-      setMenuItems(prev => prev.map(item => bulkDrafts[item.id] ? { ...item, ...bulkDrafts[item.id] } : item));
-      toast.success(`${changed.length} menu item${changed.length === 1 ? '' : 's'} updated.`);
-      setBulkUpdateOpen(false);
-      setSelectedItems(new Set());
-      setBulkEditMode(false);
-    } catch (error) {
-      setBulkUpdateErrors(['Some items could not be saved. Your changes are still here so you can try again.']);
-      toast.error('Could not save all changes.');
-    } finally { setBulkUpdating(false); }
+    const controller = new AbortController();
+    bulkAbortRef.current = controller;
+    const operationId = generateTemporaryId();
+    setBulkOperation({ id: operationId, total: changed.length, completed: 0 });
+    setBulkFailedIds([]); setBulkUpdating(true); setBulkUpdateErrors([]);
+    const results = [];
+    for (let index = 0; index < changed.length; index += 4) {
+      if (controller.signal.aborted) break;
+      const batch = changed.slice(index, index + 4);
+      const batchResults = await Promise.all(batch.map(async item => {
+        try {
+          const response = await apiWithRetry({ method: 'put', url: `${API}/menu/${item.id}`, data: normalizeBulkItem(item), timeout: 10000, signal: controller.signal });
+          return { id: item.id, ok: true, data: response.data };
+        } catch (error) { return { id: item.id, ok: false, error: error.message || 'Request failed' }; }
+      }));
+      results.push(...batchResults);
+      setBulkOperation(prev => prev && ({ ...prev, completed: Math.min(prev.total, index + batch.length) }));
+    }
+    const failed = results.filter(result => !result.ok);
+    const succeeded = results.filter(result => result.ok);
+    setMenuItems(prev => prev.map(item => succeeded.find(result => result.id === item.id)?.data || item));
+    setBulkFailedIds(failed.map(result => result.id));
+    if (succeeded.length) setBulkOriginals(prev => ({ ...prev, ...Object.fromEntries(succeeded.map(result => [result.id, normalizeBulkItem(result.data)])) }));
+    if (failed.length) setBulkUpdateErrors(failed.map(result => `${bulkDrafts[result.id]?.name || result.id}: ${result.error}`));
+    else { toast.success(`${succeeded.length} menu item${succeeded.length === 1 ? '' : 's'} updated.`); setBulkUpdateOpen(false); setSelectedItems(new Set()); setBulkEditMode(false); }
+    setBulkUpdating(false); setBulkOperation(null); bulkAbortRef.current = null;
   };
+
+  const cancelBulkUpdate = () => { bulkAbortRef.current?.abort(); setBulkUpdating(false); setBulkOperation(null); };
 
   const resetForm = () => {
     setFormData({
@@ -1856,19 +1884,21 @@ const MenuPage = ({ user }) => {
                   <CardTitle>Edit menu items</CardTitle>
                   <p className="mt-1 text-sm text-muted-foreground">Click any cell to change it. Use the category dropdown to update a whole group quickly.</p>
                 </div>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground"><span>{Object.values(bulkDrafts).length} items</span><span aria-hidden="true">•</span><span>{Object.values(bulkDrafts).filter(item => JSON.stringify(item) !== JSON.stringify(bulkOriginals[item.id])).length} changed</span></div>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground"><span>{Object.values(bulkDrafts).length} items</span><span aria-hidden="true">•</span><span>{Object.values(bulkDrafts).filter(item => bulkChanged(item.id)).length} changed</span></div>
               </div>
               <div className="flex flex-wrap items-end gap-3 rounded-lg bg-muted/50 p-3">
                 <div className="min-w-48"><Label htmlFor="bulk-category-filter">Show category</Label><select id="bulk-category-filter" value={selectedCategory} onChange={e => setSelectedCategory(e.target.value)} className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm">{categories.map(category => <option key={category.value} value={category.value}>{category.label} ({category.count})</option>)}</select></div>
-                <div className="min-w-48"><Label htmlFor="apply-category">Apply category to all</Label><select id="apply-category" defaultValue="" onChange={e => { if (e.target.value) Object.keys(bulkDrafts).forEach(id => updateBulkDraft(id, 'category', e.target.value)); e.target.value = ''; }} className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm"><option value="">Choose category...</option>{categories.filter(category => category.value !== 'all').map(category => <option key={category.value} value={category.value}>{category.label}</option>)}</select></div>
+                <div className="min-w-48"><Label htmlFor="apply-category">Apply category to all</Label><select id="apply-category" defaultValue="" onChange={e => { if (e.target.value) Array.from(selectedItems).forEach(id => updateBulkDraft(id, 'category', e.target.value)); e.target.value = ''; }} className="mt-1 w-full rounded-md border bg-background px-3 py-2 text-sm"><option value="">Choose category...</option>{categories.filter(category => category.value !== 'all').map(category => <option key={category.value} value={category.value}>{category.label}</option>)}</select></div>
                 <Button type="button" variant="outline" onClick={() => { const visibleIds = filteredAndSortedItems.map(item => item.id); setBulkDrafts(prev => Object.fromEntries(Object.entries(prev).map(([id, item]) => visibleIds.includes(Number(id)) || visibleIds.includes(id) ? [id, { ...item, available: true }] : [id, item]))); }}>Make visible available</Button>
               </div>
             </CardHeader>
             <CardContent className="min-h-0 flex-1 overflow-auto p-0">
+              {bulkOperation && <div className="border-b bg-muted/30 px-4 py-2 text-sm text-muted-foreground" role="status">Saving {bulkOperation.completed} of {bulkOperation.total} items…</div>}
+              {bulkFailedIds.length > 0 && <div className="m-4 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{bulkFailedIds.length} item{bulkFailedIds.length === 1 ? '' : 's'} failed. Edit them and save again.</div>}
               {bulkUpdateErrors.length > 0 && <div className="m-4 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive" role="alert">{bulkUpdateErrors.map(error => <p key={error}>{error}</p>)}</div>}
-              <div className="min-w-0 overflow-auto"><table className="min-w-[1180px] w-full text-sm"><thead className="sticky top-0 z-[1] bg-muted"><tr>{['Item name','Category','Price','Prep time','Available','Popular','Vegetarian','Spicy','Allergens'].map(label => <th key={label} className="whitespace-nowrap px-3 py-3 text-left font-semibold">{label}</th>)}</tr></thead><tbody>{Object.values(bulkDrafts).filter(item => selectedCategory === 'all' || item.category === selectedCategory).map(item => <tr key={item.id} className="border-t hover:bg-muted/40"><td className="min-w-64 px-3 py-2"><Input aria-label={`${item.name} item name`} value={item.name} onChange={e => updateBulkDraft(item.id, 'name', e.target.value)} /></td><td className="min-w-52 px-3 py-2"><select aria-label={`${item.name} category`} value={item.category} onChange={e => updateBulkDraft(item.id, 'category', e.target.value)} className="w-full rounded-md border bg-background px-2 py-2">{categories.filter(category => category.value !== 'all').map(category => <option key={category.value} value={category.value}>{category.label}</option>)}</select></td><td className="w-28 px-3 py-2"><Input type="number" min="0" step="0.01" value={item.price} onChange={e => updateBulkDraft(item.id, 'price', e.target.value)} /></td><td className="w-28 px-3 py-2"><Input type="number" min="0" step="1" value={item.preparation_time} onChange={e => updateBulkDraft(item.id, 'preparation_time', e.target.value)} /></td>{['available','is_popular','is_vegetarian','is_spicy'].map(field => <td key={field} className="w-32 px-3 py-2"><select aria-label={`${item.name} ${field}`} value={String(Boolean(item[field]))} onChange={e => updateBulkDraft(item.id, field, e.target.value === 'true')} className="w-full rounded-md border bg-background px-2 py-2"><option value="true">Yes</option><option value="false">No</option></select></td>)}<td className="min-w-56 px-3 py-2"><Input value={item.allergens} placeholder="None" onChange={e => updateBulkDraft(item.id, 'allergens', e.target.value)} /></td></tr>)}</tbody></table></div>
+              <div className="min-w-0 overflow-auto"><table className="min-w-[1240px] w-full text-sm"><thead className="sticky top-0 z-[1] bg-muted"><tr>{['Select','Item name','Category','Price','Prep time','Available','Popular','Vegetarian','Spicy','Allergens'].map(label => <th key={label} className="whitespace-nowrap px-3 py-3 text-left font-semibold">{label}</th>)}</tr></thead><tbody>{filteredAndSortedItems.map(item => bulkDrafts[item.id]).filter(Boolean).map(item => <tr key={item.id} className="border-t hover:bg-muted/40"><td className="w-12 px-3 py-2"><input type="checkbox" aria-label={`Select ${item.name}`} checked={selectedItems.has(item.id)} onChange={() => setSelectedItems(prev => { const next = new Set(prev); next.has(item.id) ? next.delete(item.id) : next.add(item.id); return next; })} /></td><td className="min-w-64 px-3 py-2"><Input aria-label={`${item.name} item name`} value={item.name} onChange={e => updateBulkDraft(item.id, 'name', e.target.value)} /></td><td className="min-w-52 px-3 py-2"><select aria-label={`${item.name} category`} value={item.category} onChange={e => updateBulkDraft(item.id, 'category', e.target.value)} className="w-full rounded-md border bg-background px-2 py-2">{categories.filter(category => category.value !== 'all').map(category => <option key={category.value} value={category.value}>{category.label}</option>)}</select></td><td className="w-28 px-3 py-2"><Input type="number" min="0" step="0.01" value={item.price} onChange={e => updateBulkDraft(item.id, 'price', e.target.value)} /></td><td className="w-28 px-3 py-2"><Input type="number" min="0" step="1" value={item.preparation_time} onChange={e => updateBulkDraft(item.id, 'preparation_time', e.target.value)} /></td>{['available','is_popular','is_vegetarian','is_spicy'].map(field => <td key={field} className="w-32 px-3 py-2"><select aria-label={`${item.name} ${field}`} value={String(Boolean(item[field]))} onChange={e => updateBulkDraft(item.id, field, e.target.value === 'true')} className="w-full rounded-md border bg-background px-2 py-2"><option value="true">Yes</option><option value="false">No</option></select></td>)}<td className="min-w-56 px-3 py-2"><Input value={item.allergens} placeholder="None" onChange={e => updateBulkDraft(item.id, 'allergens', e.target.value)} /></td></tr>)}</tbody></table></div>
             </CardContent>
-            <div className="shrink-0 border-t bg-background p-4"><div className="flex flex-wrap items-center justify-between gap-3"><p className="text-sm text-muted-foreground">Edit cells, then save once. Scroll inside the table to see every column.</p><div className="flex gap-2"><Button type="button" variant="outline" disabled={bulkUpdating} onClick={() => setBulkUpdateOpen(false)}>Cancel</Button><Button type="button" disabled={bulkUpdating} onClick={applyBulkUpdate} data-testid="bulk-update-apply-button">{bulkUpdating ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Saving...</> : 'Save changes'}</Button></div></div></div>
+            <div className="shrink-0 border-t bg-background p-4"><div className="flex flex-wrap items-center justify-between gap-3"><p className="text-sm text-muted-foreground">Edit cells, then save once. Scroll inside the table to see every column.</p><div className="flex gap-2"><Button type="button" variant="outline" disabled={bulkUpdating} onClick={() => { cancelBulkUpdate(); setBulkUpdateOpen(false); }}>Cancel</Button><Button type="button" disabled={bulkUpdating} onClick={applyBulkUpdate} data-testid="bulk-update-apply-button">{bulkUpdating ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Saving...</> : 'Save changes'}</Button></div></div></div>
             </Card>
           </DialogContent>
         </Dialog>
