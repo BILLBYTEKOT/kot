@@ -1421,7 +1421,7 @@ const MenuPage = ({ user }) => {
                   setBulkEditMode(!bulkEditMode);
                   setSelectedItems(new Set());
                 }}
-                className={bulkEditMode ? 'bg-violet-600 hover:bg-violet-700' : ''}
+                className={bulkEditMode ? 'bg-violet-600 text-white hover:bg-violet-700' : 'border-violet-300 bg-violet-50 text-violet-700 hover:bg-violet-100'}
                 data-testid="bulk-edit-toggle"
                 title="Select multiple items and update their details together"
               >
@@ -1786,7 +1786,7 @@ const MenuPage = ({ user }) => {
         {/* Bulk edit actions */}
         {bulkEditMode && (
           <Card className="p-4 bg-violet-50 border-violet-200">
-            <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex min-w-0 items-center justify-between gap-3 flex-wrap">
               <div className="flex items-center gap-3">
                 <span className="font-medium">{selectedItems.size ? `${selectedItems.size} items selected` : 'Edit all menu items in one table'}</span>
                 <Button
@@ -1809,6 +1809,7 @@ const MenuPage = ({ user }) => {
                 <Button
                   size="sm"
                   variant="default"
+                  className="shrink-0 bg-violet-600 font-semibold text-white shadow-sm hover:bg-violet-700"
                   onClick={openBulkUpdate}
                   data-testid="bulk-update-button"
                 >
