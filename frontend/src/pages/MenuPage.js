@@ -47,6 +47,21 @@ const MenuPage = ({ user }) => {
   const [showAvailableOnly, setShowAvailableOnly] = useState(false);
   const [bulkEditMode, setBulkEditMode] = useState(false);
   const [selectedItems, setSelectedItems] = useState(new Set());
+  const [bulkUpdateOpen, setBulkUpdateOpen] = useState(false);
+  const [bulkUpdateStep, setBulkUpdateStep] = useState('configure');
+  const [bulkUpdating, setBulkUpdating] = useState(false);
+  const [bulkUpdateErrors, setBulkUpdateErrors] = useState([]);
+  const [bulkUpdateData, setBulkUpdateData] = useState({
+    available: '',
+    is_popular: '',
+    is_vegetarian: '',
+    is_spicy: '',
+    priceMode: 'keep',
+    priceValue: '',
+    preparation_time: '',
+    category: '',
+    allergens: ''
+  });
   const [showFilters, setShowFilters] = useState(false);
   const [priceRange, setPriceRange] = useState({ min: '', max: '' });
   const [formData, setFormData] = useState({
@@ -833,6 +848,73 @@ const MenuPage = ({ user }) => {
       fetchMenuItems();
     } catch (error) {
       toast.error('Failed to update some items');
+    }
+  };
+
+  const updateBulkField = (field, value) => {
+    setBulkUpdateData(prev => ({ ...prev, [field]: value }));
+    setBulkUpdateErrors([]);
+  };
+
+  const openBulkUpdate = () => {
+    if (selectedItems.size === 0) return;
+    setBulkUpdateData({ available: '', is_popular: '', is_vegetarian: '', is_spicy: '', priceMode: 'keep', priceValue: '', preparation_time: '', category: '', allergens: '' });
+    setBulkUpdateErrors([]);
+    setBulkUpdateStep('configure');
+    setBulkUpdateOpen(true);
+  };
+
+  const getBulkChanges = () => {
+    const changes = {};
+    ['available', 'is_popular', 'is_vegetarian', 'is_spicy'].forEach(field => {
+      if (bulkUpdateData[field] !== '') changes[field] = bulkUpdateData[field] === 'true';
+    });
+    if (bulkUpdateData.priceMode === 'fixed' && bulkUpdateData.priceValue !== '') changes.price = Number(bulkUpdateData.priceValue);
+    if (bulkUpdateData.priceMode === 'percent' && bulkUpdateData.priceValue !== '') changes.priceAdjustment = Number(bulkUpdateData.priceValue);
+    if (bulkUpdateData.preparation_time !== '') changes.preparation_time = Number(bulkUpdateData.preparation_time);
+    if (bulkUpdateData.category.trim()) changes.category = bulkUpdateData.category.trim();
+    if (bulkUpdateData.allergens.trim()) changes.allergens = bulkUpdateData.allergens.trim();
+    return changes;
+  };
+
+  const reviewBulkUpdate = () => {
+    const errors = [];
+    if (bulkUpdateData.priceMode !== 'keep' && bulkUpdateData.priceValue === '') errors.push('Enter a price value or choose Keep existing.');
+    if (bulkUpdateData.priceMode !== 'keep' && Number.isNaN(Number(bulkUpdateData.priceValue))) errors.push('Price adjustment must be a valid number.');
+    if (bulkUpdateData.preparation_time !== '' && (!Number.isInteger(Number(bulkUpdateData.preparation_time)) || Number(bulkUpdateData.preparation_time) < 0)) errors.push('Preparation time must be a whole number of minutes.');
+    if (Object.keys(getBulkChanges()).length === 0) errors.push('Choose at least one field to update.');
+    setBulkUpdateErrors(errors);
+    if (!errors.length) setBulkUpdateStep('review');
+  };
+
+  const applyBulkUpdate = async () => {
+    if (bulkUpdating) return;
+    const changes = getBulkChanges();
+    setBulkUpdating(true);
+    setBulkUpdateStep('applying');
+    try {
+      await Promise.all(Array.from(selectedItems).map(id => {
+        const item = menuItems.find(menuItem => menuItem.id === id);
+        const nextItem = { ...item, ...changes };
+        if (changes.priceAdjustment !== undefined) {
+          nextItem.price = Math.max(0, Number(item.price) * (1 + changes.priceAdjustment / 100)).toFixed(2);
+          delete nextItem.priceAdjustment;
+        }
+        return apiWithRetry({ method: 'put', url: `${API}/menu/${id}`, data: nextItem, timeout: 10000 });
+      }));
+      toast.success(`${selectedItems.size} menu items updated successfully.`);
+      setMenuItems(prev => prev.map(item => selectedItems.has(item.id) ? { ...item, ...changes, ...(changes.priceAdjustment !== undefined ? { price: Math.max(0, Number(item.price) * (1 + changes.priceAdjustment / 100)).toFixed(2) } : {}) } : item));
+      setSelectedItems(new Set());
+      setBulkEditMode(false);
+      setBulkUpdateOpen(false);
+      setBulkUpdateStep('configure');
+      fetchMenuItems();
+    } catch (error) {
+      setBulkUpdateErrors(['Some items could not be updated. Your selection is still available so you can review and retry.']);
+      setBulkUpdateStep('review');
+      toast.error('Failed to update selected items.');
+    } finally {
+      setBulkUpdating(false);
     }
   };
 
@@ -1743,6 +1825,15 @@ const MenuPage = ({ user }) => {
               <div className="flex gap-2">
                 <Button
                   size="sm"
+                  variant="default"
+                  onClick={openBulkUpdate}
+                  data-testid="bulk-update-button"
+                >
+                  <Edit className="w-4 h-4 mr-2" />
+                  Bulk Update
+                </Button>
+                <Button
+                  size="sm"
                   variant="outline"
                   onClick={() => handleBulkAvailabilityToggle(true)}
                 >
@@ -1769,6 +1860,50 @@ const MenuPage = ({ user }) => {
             </div>
           </Card>
         )}
+
+        <Dialog open={bulkUpdateOpen} onOpenChange={(open) => { if (!bulkUpdating) setBulkUpdateOpen(open); }}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto" data-testid="bulk-update-dialog">
+            <DialogHeader>
+              <DialogTitle>Bulk update {selectedItems.size} menu items</DialogTitle>
+            </DialogHeader>
+            {bulkUpdateStep === 'configure' && (
+              <div className="flex flex-col gap-5">
+                <p className="text-sm text-muted-foreground">Choose only the fields you want to change. Everything else stays as-is.</p>
+                <section className="flex flex-col gap-3">
+                  <h3 className="font-semibold">Availability and flags</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {['available', 'is_popular', 'is_vegetarian', 'is_spicy'].map((field) => (
+                      <label key={field} className="flex items-center justify-between rounded-lg border p-3 text-sm">
+                        <span>{field === 'available' ? 'Available' : field.replace('is_', '').replace('_', ' ')}</span>
+                        <select value={bulkUpdateData[field]} onChange={(e) => updateBulkField(field, e.target.value)} className="rounded-md border bg-background px-2 py-1 capitalize">
+                          <option value="">Keep existing</option><option value="true">Yes</option><option value="false">No</option>
+                        </select>
+                      </label>
+                    ))}
+                  </div>
+                </section>
+                <section className="flex flex-col gap-3">
+                  <h3 className="font-semibold">Pricing and prep time</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <label className="flex flex-col gap-1 text-sm"><span>Price update</span><select value={bulkUpdateData.priceMode} onChange={(e) => updateBulkField('priceMode', e.target.value)} className="rounded-md border bg-background px-3 py-2"><option value="keep">Keep existing</option><option value="fixed">Set fixed price</option><option value="percent">Adjust by percentage</option></select></label>
+                    <label className="flex flex-col gap-1 text-sm"><span>Price value</span><Input type="number" min="0" step="0.01" disabled={bulkUpdateData.priceMode === 'keep'} value={bulkUpdateData.priceValue} onChange={(e) => updateBulkField('priceValue', e.target.value)} placeholder="e.g. 10" /></label>
+                    <label className="flex flex-col gap-1 text-sm"><span>Preparation time (minutes)</span><Input type="number" min="0" step="1" value={bulkUpdateData.preparation_time} onChange={(e) => updateBulkField('preparation_time', e.target.value)} placeholder="Keep existing" /></label>
+                  </div>
+                </section>
+                <section className="flex flex-col gap-3">
+                  <h3 className="font-semibold">Category and allergens</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3"><label className="flex flex-col gap-1 text-sm"><span>Replace category</span><Input value={bulkUpdateData.category} onChange={(e) => updateBulkField('category', e.target.value)} placeholder="Keep existing" /></label><label className="flex flex-col gap-1 text-sm"><span>Replace allergens</span><Input value={bulkUpdateData.allergens} onChange={(e) => updateBulkField('allergens', e.target.value)} placeholder="Keep existing" /></label></div>
+                </section>
+                {bulkUpdateErrors.length > 0 && <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive" role="alert">{bulkUpdateErrors.map(error => <p key={error}>{error}</p>)}</div>}
+                <div className="flex justify-end gap-2"><Button variant="outline" onClick={() => setBulkUpdateOpen(false)}>Cancel</Button><Button onClick={reviewBulkUpdate} data-testid="bulk-update-review-button">Review changes</Button></div>
+              </div>
+            )}
+            {bulkUpdateStep === 'review' && (
+              <div className="flex flex-col gap-5"><div className="rounded-lg bg-muted p-4"><p className="font-semibold">Ready to update {selectedItems.size} items</p><p className="mt-1 text-sm text-muted-foreground">The following changes will be applied to every selected item:</p><ul className="mt-3 list-disc pl-5 text-sm">{Object.entries(getBulkChanges()).map(([field, value]) => <li key={field}>{field === 'priceAdjustment' ? `Price: ${value}% adjustment` : `${field.replaceAll('_', ' ')}: ${String(value)}`}</li>)}</ul></div>{bulkUpdateErrors.length > 0 && <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive" role="alert">{bulkUpdateErrors.map(error => <p key={error}>{error}</p>)}</div>}<div className="flex justify-end gap-2"><Button variant="outline" onClick={() => { setBulkUpdateErrors([]); setBulkUpdateStep('configure'); }}>Back</Button><Button onClick={applyBulkUpdate} data-testid="bulk-update-apply-button">Apply updates</Button></div></div>
+            )}
+            {bulkUpdateStep === 'applying' && <div className="flex flex-col items-center gap-3 py-8 text-center"><Loader2 className="h-8 w-8 animate-spin text-violet-600" /><p className="font-semibold">Updating selected items...</p><p className="text-sm text-muted-foreground">Please keep this window open.</p></div>}
+          </DialogContent>
+        </Dialog>
 
         {/* Bulk Upload Component */}
         {['admin', 'manager'].includes(user?.role) && (
