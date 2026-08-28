@@ -8,6 +8,52 @@
     background-size: 30px 30px;
 }
 
+/* Landing page motion */
+.landing-hero-content {
+    animation: landingHeroIn 700ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.landing-hero-content > * {
+    animation: landingItemIn 650ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.landing-hero-content > *:nth-child(2) { animation-delay: 100ms; }
+.landing-hero-content > *:nth-child(3) { animation-delay: 180ms; }
+.landing-hero-content > *:nth-child(4) { animation-delay: 260ms; }
+
+@keyframes landingHeroIn {
+    from { opacity: 0; transform: translateY(18px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes landingItemIn {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-on-scroll {
+    opacity: 0;
+    transform: translateY(18px);
+    transition: opacity 650ms ease, transform 650ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.animate-on-scroll.visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    .landing-hero-content,
+    .landing-hero-content > *,
+    .animate-on-scroll {
+        animation: none !important;
+        opacity: 1 !important;
+        transform: none !important;
+        transition: none !important;
+    }
+}
+
 /* Animation delays */
 .delay-500 {
     animation-delay: 500ms;

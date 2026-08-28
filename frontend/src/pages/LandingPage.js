@@ -11,12 +11,8 @@ import {
 } from "../components/ui/card";
 import { Input } from "../components/ui/input";
 import { toast } from "sonner";
-import LeadCapturePopup from "../components/LeadCapturePopup";
-import MobileAppLeadPopup from "../components/MobileAppLeadPopup";
-import SaleBanner from "../components/SaleBanner";
-import TopBanner from "../components/TopBanner";
-import EarlyAdopterBanner from "../components/EarlyAdopterBanner";
 import QROrderingSection from "../components/QROrderingSection";
+import TopBanner from "../components/TopBanner";
 import useSaleOfferData from "../hooks/useSaleOfferData";
 import { HomepageSEO, FAQPageSchemaInjector } from "../seo";
 import { MARKET_OPTIONS, detectMarket, getMarketPricing, getStoredMarket, saveMarket } from "../utils/marketPricing";
@@ -681,8 +677,6 @@ const LandingPage = () => {
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [email, setEmail] = useState("");
-  const [showMobileAppPopup, setShowMobileAppPopup] = useState(false);
-  
   const [marketCountry, setMarketCountry] = useState(() => getStoredMarket() || detectMarket());
 
   // Use centralized sale offer data hook for consistent data across all banners
@@ -897,8 +891,9 @@ const LandingPage = () => {
   ];
 
   return (
-    <>
-      <div className="fixed top-4 right-4 z-50 flex items-center gap-2 rounded-lg bg-white/95 px-3 py-2 text-sm shadow-lg">
+  <>
+  <TopBanner saleData={saleOffer} />
+  <div className="fixed top-4 right-4 z-50 flex items-center gap-2 rounded-lg bg-white/95 px-3 py-2 text-sm shadow-lg">
         <Globe className="h-4 w-4 text-purple-600" aria-hidden="true" />
         <label htmlFor="market-country" className="sr-only">Choose your market</label>
         <select id="market-country" value={marketCountry} onChange={(event) => { setMarketCountry(event.target.value); saveMarket(event.target.value); }} className="bg-transparent font-medium text-gray-800 outline-none">
@@ -1057,19 +1052,6 @@ const LandingPage = () => {
       ]} />
       
       <div className="min-h-screen bg-white" data-testid="landing-page">
-      {/* Early Adopter Banner - 5% Discount Offer */}
-      <EarlyAdopterBanner pricing={pricing} marketCountry={marketCountry} />
-      
-      {/* Dynamic Top Banner - Multiple Designs from Super Admin */}
-      {/* Pass centralized saleOffer data for consistency - Requirements: 8.1, 8.2 */}
-      <TopBanner saleData={saleOffer} />
-      
-      {/* Lead Capture Popup */}
-      <LeadCapturePopup />
-      
-      {/* Mobile App Early Access Popup */}
-      <MobileAppLeadPopup isOpen={showMobileAppPopup} onClose={() => setShowMobileAppPopup(false)} />
-      
       {/* Header/Navbar */}
       <header className="sticky top-0 z-[60] bg-white/95 backdrop-blur-sm border-b border-gray-200">
         <nav className="container mx-auto px-4 py-4">
@@ -1214,7 +1196,7 @@ const LandingPage = () => {
       </header>
 
       {/* Hero Section */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-violet-50 via-purple-50 to-pink-50 py-16 md:py-24">
+      <section className="landing-hero relative overflow-hidden bg-gradient-to-br from-violet-50 via-purple-50 to-pink-50 py-16 md:py-24">
         <div className="absolute inset-0 bg-grid-pattern opacity-5"></div>
         {/* Animated background elements */}
         <div className="absolute top-20 left-10 w-72 h-72 bg-violet-300 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-float-slow"></div>
@@ -1327,9 +1309,9 @@ const LandingPage = () => {
           </div>
         </div>
         
-        <div className="container mx-auto px-4 relative z-10">
-          <div className="max-w-4xl mx-auto text-center">
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-violet-100 rounded-full mb-6 animate-fade-in-down">
+      <div className="container mx-auto px-4 relative z-10">
+        <div className="max-w-4xl mx-auto text-center landing-hero-content">
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-violet-100 rounded-full mb-6 animate-fade-in-down">
               <Sparkles className="w-4 h-4 text-violet-600 animate-pulse" aria-hidden="true" />
               <span className="text-sm font-medium text-violet-600">
                 #1 KOT-First Restaurant Automation Platform India 2025
@@ -1718,24 +1700,6 @@ const LandingPage = () => {
           </div>
         </div>
       </section>
-
-      {/* Special Offer Section - Only show if sale offer is enabled */}
-      {/* Requirements: 8.5, 8.6 - Sale offer takes priority over campaign */}
-      {hasActivePromotion && saleOffer && saleOffer.enabled && (
-        <SaleOfferSection navigate={navigate} saleOffer={saleOffer} pricing={pricing} marketPricing={marketPricing} />
-      )}
-      
-      {/* Floating Corner Sale Banner - Shows at bottom-right when sale is active */}
-      {/* Requirements: 9.1, 9.5 - Floating banners display same data */}
-      {hasActivePromotion && saleOffer && saleOffer.enabled && (
-        <SaleBanner position="corner" saleData={saleOffer} />
-      )}
-      
-      {/* Floating Side Sale Banner - Shows at right-center on desktop when sale is active */}
-      {/* Requirements: 9.2, 9.6 - Floating side banner with theme styling */}
-      {hasActivePromotion && saleOffer && saleOffer.enabled && (
-        <SaleBanner position="side" saleData={saleOffer} />
-      )}
 
       {/* Quick Links Section */}
       <section className="py-12 bg-gray-50">
