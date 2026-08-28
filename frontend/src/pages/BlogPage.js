@@ -52,9 +52,8 @@ const Sidebar = ({ timeLeft }) => (
             <span className="text-xl font-bold">OFF</span>
           </div>
           <div className="flex items-center gap-2 mb-4">
-            <span className="text-white/50 line-through text-sm">₹1999/yr</span>
-            <span className="text-white font-black text-xl">₹1899/yr</span>
-            <span className="bg-yellow-400 text-black text-[10px] font-black px-1.5 py-0.5 rounded">SAVE ₹100</span>
+            <span className="text-white font-black text-xl">Flexible local pricing</span>
+            <span className="bg-yellow-400 text-black text-[10px] font-black px-1.5 py-0.5 rounded">LOCAL CURRENCY</span>
           </div>
           {/* Countdown */}
           <div className="flex gap-1.5 mb-4">
@@ -67,7 +66,7 @@ const Sidebar = ({ timeLeft }) => (
           </div>
           <Link to="/login">
             <button className="w-full bg-white text-red-600 font-black py-2.5 rounded-xl text-sm hover:bg-yellow-50 transition-all shadow">
-              Claim 20% OFF Now →
+              See Plans in Your Currency →
             </button>
           </Link>
           <p className="text-[10px] text-white/50 text-center mt-2">Resets at midnight • No credit card needed</p>
@@ -114,7 +113,7 @@ const Sidebar = ({ timeLeft }) => (
             ['500+', 'Restaurants using it'],
             ['80%', 'Fewer kitchen errors'],
             ['3x', 'Faster table turnover'],
-            ['₹133/mo', 'Yearly plan at 20% off'],
+            ['Local pricing', 'Plans for every market'],
             ['5 min', 'Setup time'],
             ['7 days', 'Free trial, no card'],
           ].map(([stat, label]) => (
@@ -223,9 +222,8 @@ const BlogPage = () => {
     },
   ];
 
-  const allMarkets = [...new Set(publishedPosts.flatMap(p => p.targetMarket || []))].filter(Boolean);
-
   const allPosts = [...(publishedPosts.length > 0 ? publishedPosts : blogPostsData), ...extraPosts];
+  const allMarkets = [...new Set(allPosts.flatMap(p => p.targetMarket || []))].filter(Boolean).sort();
   const featuredPosts = allPosts.filter(p => p.featured).slice(0, 4);
 
   const marketFilteredPosts = selectedMarket
