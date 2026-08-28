@@ -12,6 +12,7 @@ import {
 import { Input } from "../components/ui/input";
 import { toast } from "sonner";
 import QROrderingSection from "../components/QROrderingSection";
+import TopBanner from "../components/TopBanner";
 import useSaleOfferData from "../hooks/useSaleOfferData";
 import { HomepageSEO, FAQPageSchemaInjector } from "../seo";
 import { MARKET_OPTIONS, detectMarket, getMarketPricing, getStoredMarket, saveMarket } from "../utils/marketPricing";
@@ -890,8 +891,9 @@ const LandingPage = () => {
   ];
 
   return (
-    <>
-      <div className="fixed top-4 right-4 z-50 flex items-center gap-2 rounded-lg bg-white/95 px-3 py-2 text-sm shadow-lg">
+  <>
+  <TopBanner saleData={saleOffer} />
+  <div className="fixed top-4 right-4 z-50 flex items-center gap-2 rounded-lg bg-white/95 px-3 py-2 text-sm shadow-lg">
         <Globe className="h-4 w-4 text-purple-600" aria-hidden="true" />
         <label htmlFor="market-country" className="sr-only">Choose your market</label>
         <select id="market-country" value={marketCountry} onChange={(event) => { setMarketCountry(event.target.value); saveMarket(event.target.value); }} className="bg-transparent font-medium text-gray-800 outline-none">
