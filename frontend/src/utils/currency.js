@@ -8,6 +8,21 @@ const MARKET_CURRENCIES = {
   AU: { currency: 'AUD', locale: 'en-AU' },
 };
 
+// Product prices are stored in INR. These rates convert the INR base price
+// consistently for display and checkout; update them when commercial rates change.
+export const INR_RATES = {
+  INR: 1,
+  USD: 0.0115,
+  GBP: 0.0088,
+  EUR: 0.0106,
+  AED: 0.0423,
+  CAD: 0.0157,
+  AUD: 0.0177,
+};
+
+export const convertFromINR = (amount, currency = 'INR') =>
+  Math.round((Number(amount) || 0) * (INR_RATES[currency] || 1));
+
 export const getMarketCurrency = () => {
   const language = typeof navigator !== 'undefined' ? navigator.language || '' : '';
   const region = language.split('-')[1]?.toUpperCase();

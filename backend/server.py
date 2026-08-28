@@ -4418,7 +4418,6 @@ async def create_subscription_order(
     
     # Server-owned base plans. The browser never chooses the charge amount.
     plans = {
-        "daily": {"months": 0, "days": 1, "price": 19, "originalPrice": 25, "discount": 24, "label": "1 Day", "perMonth": 19},
         "monthly": {"months": 1, "days": 0, "price": 199, "originalPrice": 199, "discount": 0, "label": "1 Month", "perMonth": 199},
         "quarterly": {"months": 3, "days": 0, "price": 521, "originalPrice": 549, "discount": 5, "label": "3 Months", "perMonth": 174},
         "halfYearly": {"months": 6, "days": 0, "price": 949, "originalPrice": 999, "discount": 5, "label": "6 Months", "perMonth": 158},
@@ -4607,7 +4606,6 @@ async def verify_subscription_payment(
         
         # Activate only a server-recognized plan duration.
         plans = {
-            "daily": {"months": 0, "days": 1, "price": 19, "label": "1 Day"},
             "monthly": {"months": 1, "days": 0, "price": 199, "label": "1 Month"},
             "quarterly": {"months": 3, "days": 0, "price": 521, "label": "3 Months"},
             "halfYearly": {"months": 6, "days": 0, "price": 949, "label": "6 Months"},
