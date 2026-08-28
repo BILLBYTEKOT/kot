@@ -19,6 +19,7 @@ import EarlyAdopterBanner from "../components/EarlyAdopterBanner";
 import QROrderingSection from "../components/QROrderingSection";
 import useSaleOfferData from "../hooks/useSaleOfferData";
 import { HomepageSEO, FAQPageSchemaInjector } from "../seo";
+import { MARKET_OPTIONS, detectMarket, getMarketPricing, saveMarket } from "../utils/marketPricing";
 import {
   ChefHat,
   Sparkles,
@@ -691,6 +692,8 @@ const LandingPage = () => {
     hasActivePromotion,
     loading: promotionalDataLoading 
   } = useSaleOfferData();
+  const [marketCountry, setMarketCountry] = useState(detectMarket);
+  const marketPricing = getMarketPricing(marketCountry, pricing);
   
   // Initialize scroll animations
   useScrollAnimation();
@@ -829,8 +832,8 @@ const LandingPage = () => {
     
     let currentPrice, originalPrice, discountPercent;
     if (isSaleActive) {
-      currentPrice = `₹${saleOffer.sale_price || 1899}`;
-      originalPrice = `₹${saleOffer.original_price || 1999}`;
+      currentPrice = marketPricing.saleDisplay;
+      originalPrice = marketPricing.regularDisplay;
       discountPercent = saleOffer.discount_percent || 5;
     } else if (isPricingCampaignActive) {
       currentPrice = pricing?.campaign_price_display || '₹1899';
@@ -894,6 +897,13 @@ const LandingPage = () => {
 
   return (
     <>
+      <div className="fixed top-4 right-4 z-50 flex items-center gap-2 rounded-lg bg-white/95 px-3 py-2 text-sm shadow-lg">
+        <Globe className="h-4 w-4 text-purple-600" aria-hidden="true" />
+        <label htmlFor="market-country" className="sr-only">Choose your market</label>
+        <select id="market-country" value={marketCountry} onChange={(event) => { setMarketCountry(event.target.value); saveMarket(event.target.value); }} className="bg-transparent font-medium text-gray-800 outline-none">
+          {MARKET_OPTIONS.map((market) => <option key={market.country} value={market.country}>{market.name} ({market.currency})</option>)}
+        </select>
+      </div>
       {/* SEO Meta Tags and Schema Markup */}
       <HomepageSEO
         title="BillByteKOT - #1 KOT-First Restaurant Automation Platform India | Free KOT System & Thermal Printing"

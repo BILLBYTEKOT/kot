@@ -10,6 +10,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { API } from '../App';
+import { detectMarket } from '../utils/marketPricing';
 
 /**
  * useSaleOfferData - Centralized hook for promotional data
@@ -32,13 +33,14 @@ const useSaleOfferData = () => {
 
   const fetchPromotionalData = useCallback(async () => {
     setLoading(true);
+    const market = detectMarket();
     setError(null);
 
     try {
       // Fetch all promotional data in parallel
       const [saleRes, pricingRes, campaignRes] = await Promise.allSettled([
         axios.get(`${API}/public/sale-offer`),
-        axios.get(`${API}/public/pricing`),
+        axios.get(`${API}/public/pricing`, { params: { country: market } }),
         axios.get(`${API}/public/active-campaigns`)
       ]);
 
