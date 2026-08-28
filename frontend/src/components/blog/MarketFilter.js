@@ -13,7 +13,8 @@ const MarketFilter = ({ markets = [], selected = null, onChange }) => {
     Malaysia: '🇲🇾 Malaysia',
     Australia: '🇦🇺 Australia',
     Canada: '🇨🇦 Canada',
-    Global: '🌍 Global',
+    Global: 'Global',
+    EU: 'Europe',
   };
 
   return (

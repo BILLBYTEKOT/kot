@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { invalidateShared } from '../utils/sharedDataCache';
+import { formatCurrency, getMarketCurrency } from '../utils/currency';
 
 const SubscriptionPage = ({ user }) => {
   const [subscriptionStatus, setSubscriptionStatus] = useState(null);
@@ -22,15 +23,18 @@ const SubscriptionPage = ({ user }) => {
   const [referralDiscount, setReferralDiscount] = useState(null); // Referral discount info
   const [walletBalance, setWalletBalance] = useState(0); // User's wallet balance
   const [applyWallet, setApplyWallet] = useState(false); // Whether to apply wallet balance
-  const [selectedPlan, setSelectedPlan] = useState('yearly'); // Plan selection: quarterly, half-yearly, yearly
+  const [selectedPlan, setSelectedPlan] = useState('yearly');
+  const [marketCurrency] = useState(getMarketCurrency);
   const navigate = useNavigate();
 
-  // Pricing plans — 5% OFF (no timers)
   const plans = {
+    daily: { days: 1, months: 0, price: 19, originalPrice: 25, discount: 24, label: '1 Day', perMonth: 19 },
     quarterly: { months: 3, price: 521, originalPrice: 549, discount: 5, label: '3 Months', perMonth: 174 },
     halfYearly: { months: 6, price: 949, originalPrice: 999, discount: 5, label: '6 Months', perMonth: 158 },
     yearly: { months: 12, price: 1899, originalPrice: 1999, discount: 5, label: '1 Year', perMonth: 158, popular: true }
   };
+
+  const displayPrice = (amount) => formatCurrency(amount, marketCurrency.currency, marketCurrency.locale);
 
   useEffect(() => {
     loadPageData();
@@ -131,7 +135,8 @@ const SubscriptionPage = ({ user }) => {
       const response = await axios.post(`${API}/subscription/create-order`, {
         plan_type: selectedPlan,
         months: plan.months,
-        amount: plan.price
+        days: plan.days || 0,
+        currency: marketCurrency.currency
       });
       
       let finalAmount = response.data.amount || (plan.price * 100); // Convert to paise
@@ -177,7 +182,9 @@ const SubscriptionPage = ({ user }) => {
               razorpay_order_id: razorpayResponse.razorpay_order_id,
               razorpay_signature: razorpayResponse.razorpay_signature,
               plan_type: selectedPlan,
-              months: plan.months
+              months: plan.months,
+              days: plan.days || 0,
+              currency: marketCurrency.currency
             });
             toast.success(verifyResponse.data.message || '🎉 Premium activated! Welcome to BillByteKOT AI Pro!');
             // Invalidate cached auth/settings so app picks up subscription_active=True immediately
@@ -419,7 +426,7 @@ const SubscriptionPage = ({ user }) => {
               {/* Plan Selection */}
               <div className="space-y-3">
                 <p className="text-sm font-medium text-gray-600 text-center">Choose your plan:</p>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {Object.entries(plans).map(([key, plan]) => (
                     <button
                       key={key}
@@ -442,9 +449,9 @@ const SubscriptionPage = ({ user }) => {
                       )}
                       <div className="text-center">
                         <p className="font-bold text-gray-900">{plan.label}</p>
-                        <p className="text-2xl font-black text-violet-600">₹{plan.price}</p>
+                        <p className="text-2xl font-black text-violet-600">{displayPrice(plan.price)}</p>
                         {plan.discount > 0 && (
-                          <p className="text-xs text-gray-400 line-through">₹{plan.originalPrice}</p>
+                          <p className="text-xs text-gray-400 line-through">{displayPrice(plan.originalPrice)}</p>
                         )}
                         <p className="text-xs text-gray-500 mt-1">₹{plan.perMonth}/mo</p>
                         {plan.discount > 0 && (
@@ -462,7 +469,7 @@ const SubscriptionPage = ({ user }) => {
               <div className="text-center p-4 bg-gradient-to-r from-violet-50 to-purple-50 rounded-xl border border-violet-200">
                 <div className="flex items-center justify-center gap-2 mb-1">
                   {plans[selectedPlan].originalPrice !== plans[selectedPlan].price && (
-                    <span className="text-xl text-gray-400 line-through">₹{plans[selectedPlan].originalPrice}</span>
+                    <span className="text-xl text-gray-400 line-through">{displayPrice(plans[selectedPlan].originalPrice)}</span>
                   )}
                   {plans[selectedPlan].discount > 0 && (
                     <span className="bg-gradient-to-r from-green-500 to-emerald-500 text-white px-2 py-0.5 rounded-full text-xs font-bold">
@@ -471,13 +478,13 @@ const SubscriptionPage = ({ user }) => {
                   )}
                 </div>
                 <p className="text-5xl font-black bg-gradient-to-r from-violet-600 to-purple-600 bg-clip-text text-transparent">
-                  ₹{plans[selectedPlan].price}
+                  {displayPrice(plans[selectedPlan].price)}
                 </p>
                 <p className="text-gray-600 font-medium">
                   for {plans[selectedPlan].months} {plans[selectedPlan].months === 1 ? 'month' : 'months'}
                 </p>
                 <p className="text-sm text-violet-600 font-bold mt-1">
-                  Just ₹{plans[selectedPlan].perMonth}/month
+                  Just {displayPrice(plans[selectedPlan].perMonth)}/month
                 </p>
               </div>
 

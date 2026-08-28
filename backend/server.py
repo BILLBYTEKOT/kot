@@ -4399,8 +4399,10 @@ async def validate_coupon(data: CouponValidateRequest):
 
 class CreateOrderRequest(BaseModel):
     coupon_code: Optional[str] = None
-    plan_type: Optional[str] = "yearly"  # monthly, quarterly, halfYearly, yearly
+    plan_type: Optional[str] = "yearly"
     months: Optional[int] = 12
+    days: Optional[int] = 0
+    currency: Optional[str] = "INR"
     amount: Optional[float] = None
 
 
@@ -4414,30 +4416,27 @@ async def create_subscription_order(
     DEFAULT_RAZORPAY_KEY_ID = "rzp_live_RmGqVf5JPGOT6G"
     DEFAULT_RAZORPAY_KEY_SECRET = "SKYS5tgjwU3H3Pf2ch3ZFtuH"
     
-    # Define pricing plans (matching frontend)
+    # Server-owned base plans. The browser never chooses the charge amount.
     plans = {
-        "monthly": {"months": 1, "price": 199, "originalPrice": 199, "discount": 0, "label": "1 Month", "perMonth": 199},
-        "quarterly": {"months": 3, "price": 521, "originalPrice": 549, "discount": 5, "label": "3 Months", "perMonth": 174},
-        "halfYearly": {"months": 6, "price": 949, "originalPrice": 999, "discount": 5, "label": "6 Months", "perMonth": 158},
-        "yearly": {"months": 12, "price": 1899, "originalPrice": 1999, "discount": 5, "label": "1 Year", "perMonth": 158}
+        "daily": {"months": 0, "days": 1, "price": 19, "originalPrice": 25, "discount": 24, "label": "1 Day", "perMonth": 19},
+        "monthly": {"months": 1, "days": 0, "price": 199, "originalPrice": 199, "discount": 0, "label": "1 Month", "perMonth": 199},
+        "quarterly": {"months": 3, "days": 0, "price": 521, "originalPrice": 549, "discount": 5, "label": "3 Months", "perMonth": 174},
+        "halfYearly": {"months": 6, "days": 0, "price": 949, "originalPrice": 999, "discount": 5, "label": "6 Months", "perMonth": 158},
+        "yearly": {"months": 12, "days": 0, "price": 1899, "originalPrice": 1999, "discount": 5, "label": "1 Year", "perMonth": 158}
     }
+    currency_rates = {"INR": 1, "USD": 0.012, "GBP": 0.0095, "EUR": 0.011, "AED": 0.044, "CAD": 0.016, "AUD": 0.018}
+    currency = (data.currency if data and data.currency else "INR").upper()
+    if currency not in currency_rates:
+        raise HTTPException(status_code=400, detail="Unsupported currency")
     
     # Get selected plan or default to yearly
     plan_type = data.plan_type if data and data.plan_type else "yearly"
-    selected_plan = plans.get(plan_type, plans["yearly"])
-    
-    # Use plan-specific pricing
-    base_price = int(selected_plan["price"] * 100)  # Convert to paise
-    original_price = int(selected_plan["originalPrice"] * 100)  # Convert to paise
-    
-    # If amount is provided from frontend, use it (for validation)
-    if data and data.amount:
-        frontend_amount = int(data.amount * 100)  # Convert to paise
-        if abs(frontend_amount - base_price) > 100:  # Allow small rounding differences
-            print(f"⚠️  Price mismatch: Frontend={frontend_amount}, Backend={base_price}")
-            # Use frontend amount if it's reasonable (within plan price range)
-            if 10000 <= frontend_amount <= 250000:  # ₹100 to ₹2500 range
-                base_price = frontend_amount
+    if plan_type not in plans:
+        raise HTTPException(status_code=400, detail="Invalid subscription plan")
+    selected_plan = plans[plan_type]
+    rate = currency_rates[currency]
+    base_price = max(1, round(selected_plan["price"] * rate * 100))
+    original_price = max(1, round(selected_plan["originalPrice"] * rate * 100))
     
     # Get current campaign pricing from database for potential additional discounts
     try:
@@ -4506,7 +4505,7 @@ async def create_subscription_order(
         razorpay_client = razorpay.Client(auth=(razorpay_key_id, razorpay_key_secret))
 
         razor_order = razorpay_client.order.create(
-            {"amount": final_price, "currency": "INR", "payment_capture": 1}
+            {"amount": final_price, "currency": currency, "payment_capture": 1}
         )
 
         print(f"✅ Subscription order created: {plan_type} plan, ₹{final_price/100} ({selected_plan['label']})")
@@ -4517,11 +4516,11 @@ async def create_subscription_order(
             "original_amount": original_price,
             "plan_price": int(selected_plan["price"] * 100),
             "discount_amount": discount_amount,
-            "currency": "INR",
+            "currency": currency,
             "key_id": razorpay_key_id,
-            "price_display": f"₹{final_price / 100:.0f}",
-            "original_price_display": f"₹{original_price / 100:.0f}",
-            "plan_display": f"₹{selected_plan['price']}",
+            "price_display": f"{currency} {final_price / 100:.0f}",
+            "original_price_display": f"{currency} {original_price / 100:.0f}",
+            "plan_display": f"{currency} {final_price / 100:.0f}",
             "coupon_applied": coupon_applied,
             "referral_discount_applied": referral_discount_applied,
             "plan_type": plan_type,
@@ -4543,6 +4542,8 @@ class SubscriptionVerifyRequest(BaseModel):
     razorpay_signature: Optional[str] = None
     plan_type: Optional[str] = "yearly"
     months: Optional[int] = 12
+    days: Optional[int] = 0
+    currency: Optional[str] = "INR"
 
 
 @api_router.post("/subscription/verify")
@@ -4604,22 +4605,22 @@ async def verify_subscription_payment(
                     detail="Payment verification failed. Contact support with payment ID: " + data.razorpay_payment_id
                 )
         
-        # Activate subscription with plan-specific duration
-        plan_months = data.months if data.months else 12  # Default to 12 months
-        subscription_days = plan_months * 30  # Approximate days per month
-        expires_at = datetime.now(timezone.utc) + timedelta(days=subscription_days)
-        
-        # Define pricing plans for validation
+        # Activate only a server-recognized plan duration.
         plans = {
-            "monthly": {"months": 1, "price": 199},
-            "quarterly": {"months": 3, "price": 521},
-            "halfYearly": {"months": 6, "price": 949},
-            "yearly": {"months": 12, "price": 1899}
+            "daily": {"months": 0, "days": 1, "price": 19, "label": "1 Day"},
+            "monthly": {"months": 1, "days": 0, "price": 199, "label": "1 Month"},
+            "quarterly": {"months": 3, "days": 0, "price": 521, "label": "3 Months"},
+            "halfYearly": {"months": 6, "days": 0, "price": 949, "label": "6 Months"},
+            "yearly": {"months": 12, "days": 0, "price": 1899, "label": "1 Year"}
         }
-        
         plan_type = data.plan_type if data.plan_type else "yearly"
-        selected_plan = plans.get(plan_type, plans["yearly"])
-        expected_amount = int(selected_plan["price"] * 100)  # Convert to paise
+        if plan_type not in plans:
+            raise HTTPException(status_code=400, detail="Invalid subscription plan")
+        selected_plan = plans[plan_type]
+        plan_months = selected_plan["months"]
+        subscription_days = selected_plan["days"] or plan_months * 30
+        expires_at = datetime.now(timezone.utc) + timedelta(days=subscription_days)
+        expected_amount = int(selected_plan["price"] * 100)
         
         # Validate payment amount matches plan (with some tolerance for discounts)
         if payment and amount_paid > 0:
