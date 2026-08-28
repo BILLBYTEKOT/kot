@@ -19,7 +19,7 @@ import EarlyAdopterBanner from "../components/EarlyAdopterBanner";
 import QROrderingSection from "../components/QROrderingSection";
 import useSaleOfferData from "../hooks/useSaleOfferData";
 import { HomepageSEO, FAQPageSchemaInjector } from "../seo";
-import { MARKET_OPTIONS, detectMarket, getMarketPricing, saveMarket } from "../utils/marketPricing";
+import { MARKET_OPTIONS, detectMarket, getMarketPricing, getStoredMarket, saveMarket } from "../utils/marketPricing";
 import {
   ChefHat,
   Sparkles,
@@ -360,7 +360,7 @@ const DesktopDownloadSection = () => {
 };
 
 // Dynamic Sale/Promotional Section Component - Content from Ops Controls
-const SaleOfferSection = ({ navigate, saleOffer, pricing }) => {
+const SaleOfferSection = ({ navigate, saleOffer, pricing, marketPricing }) => {
   const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
   
   useEffect(() => {
@@ -397,8 +397,8 @@ const SaleOfferSection = ({ navigate, saleOffer, pricing }) => {
   const discountPercent = saleOffer?.discount_percent || pricing?.campaign_discount_percent || 5;
   const discountText = saleOffer?.discount_text || `${discountPercent}% OFF`;
   // Use sale offer prices if available, otherwise fall back to pricing
-  const salePrice = saleOffer?.sale_price ? `₹${saleOffer.sale_price}` : (pricing?.campaign_price_display || '₹1899');
-  const originalPrice = saleOffer?.original_price ? `₹${saleOffer.original_price}` : (pricing?.regular_price_display || '₹1999');
+  const salePrice = marketPricing?.saleDisplay || pricing?.campaign_price_display || '₹1899';
+  const originalPrice = marketPricing?.regularDisplay || pricing?.regular_price_display || '₹1999';
   const bgColor = saleOffer?.bg_color || 'from-red-500 via-orange-500 to-yellow-500';
 
   return (
@@ -589,8 +589,8 @@ const CampaignBanner = ({ saleOffer, pricing }) => {
 
   // Get dynamic values - use sale offer prices if available
   const discountPercent = saleOffer?.discount_percent || pricing?.campaign_discount_percent || 5;
-  const salePrice = saleOffer?.sale_price ? `₹${saleOffer.sale_price}` : (pricing?.campaign_price_display || '₹1899');
-  const originalPrice = saleOffer?.original_price ? `₹${saleOffer.original_price}` : (pricing?.regular_price_display || '₹1999');
+  const salePrice = marketPricing?.saleDisplay || pricing?.campaign_price_display || '₹1899';
+  const originalPrice = marketPricing?.regularDisplay || pricing?.regular_price_display || '₹1999';
   const discountText = saleOffer?.discount_text || `${discountPercent}% OFF`;
   const badgeText = saleOffer?.badge_text || 'SPECIAL OFFER';
   const bgColor = saleOffer?.bg_color || 'from-orange-500 via-red-500 to-pink-500';
@@ -683,6 +683,8 @@ const LandingPage = () => {
   const [email, setEmail] = useState("");
   const [showMobileAppPopup, setShowMobileAppPopup] = useState(false);
   
+  const [marketCountry, setMarketCountry] = useState(() => getStoredMarket() || detectMarket());
+
   // Use centralized sale offer data hook for consistent data across all banners
   // Requirements: 8.1, 8.2 - Banner Data Consistency
   const { 
@@ -690,9 +692,8 @@ const LandingPage = () => {
     pricing, 
     activePromotion,
     hasActivePromotion,
-    loading: promotionalDataLoading 
-  } = useSaleOfferData();
-  const [marketCountry, setMarketCountry] = useState(detectMarket);
+    loading: promotionalDataLoading
+  } = useSaleOfferData(marketCountry);
   const marketPricing = getMarketPricing(marketCountry, pricing);
   
   // Initialize scroll animations
@@ -836,12 +837,12 @@ const LandingPage = () => {
       originalPrice = marketPricing.regularDisplay;
       discountPercent = saleOffer.discount_percent || 5;
     } else if (isPricingCampaignActive) {
-      currentPrice = pricing?.campaign_price_display || '₹1899';
-      originalPrice = pricing?.regular_price_display || '₹1999';
+      currentPrice = pricing?.campaign_price_display || marketPricing.saleDisplay;
+      originalPrice = pricing?.regular_price_display || marketPricing.regularDisplay;
       discountPercent = pricing?.campaign_discount_percent || 5;
     } else {
-      currentPrice = '₹1899';
-      originalPrice = '₹1999';
+      currentPrice = marketPricing.saleDisplay;
+      originalPrice = marketPricing.regularDisplay;
       discountPercent = 5;
     }
     
@@ -1057,7 +1058,7 @@ const LandingPage = () => {
       
       <div className="min-h-screen bg-white" data-testid="landing-page">
       {/* Early Adopter Banner - 5% Discount Offer */}
-      <EarlyAdopterBanner pricing={pricing} />
+      <EarlyAdopterBanner pricing={pricing} marketCountry={marketCountry} />
       
       {/* Dynamic Top Banner - Multiple Designs from Super Admin */}
       {/* Pass centralized saleOffer data for consistency - Requirements: 8.1, 8.2 */}
@@ -1721,7 +1722,7 @@ const LandingPage = () => {
       {/* Special Offer Section - Only show if sale offer is enabled */}
       {/* Requirements: 8.5, 8.6 - Sale offer takes priority over campaign */}
       {hasActivePromotion && saleOffer && saleOffer.enabled && (
-        <SaleOfferSection navigate={navigate} saleOffer={saleOffer} pricing={pricing} />
+        <SaleOfferSection navigate={navigate} saleOffer={saleOffer} pricing={pricing} marketPricing={marketPricing} />
       )}
       
       {/* Floating Corner Sale Banner - Shows at bottom-right when sale is active */}

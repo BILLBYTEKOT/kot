@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { X, Flame, Timer, ArrowRight, Zap } from 'lucide-react';
+import { getMarketPricing, detectMarket } from '../utils/marketPricing';
 
-const EarlyAdopterBanner = ({ pricing }) => {
+const EarlyAdopterBanner = ({ pricing, marketCountry }) => {
   const navigate = useNavigate();
   const [isVisible, setIsVisible] = useState(false);
   const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
@@ -55,10 +56,11 @@ const EarlyAdopterBanner = ({ pricing }) => {
 
   // Use fallback values if pricing not loaded — 5% OFF
   const spotsLeft = pricing?.early_adopter_spots_left || 47;
-  const monthlyPrice = 158; // ₹1899/12 months
-  const yearlyPrice = 1899;
-  const originalYearlyPrice = 1999;
-  const discountPercent = 5;
+  const marketPricing = getMarketPricing(marketCountry || detectMarket(), pricing);
+  const monthlyPrice = Math.round(marketPricing.sale / 12);
+  const yearlyPrice = marketPricing.saleDisplay;
+  const originalYearlyPrice = marketPricing.regularDisplay;
+  const discountPercent = Math.round(((marketPricing.regular - marketPricing.sale) / marketPricing.regular) * 100);
 
   return (
     <div className="relative overflow-hidden text-white" style={{

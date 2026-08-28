@@ -24,7 +24,7 @@ import { detectMarket } from '../utils/marketPricing';
  * - error: Any error that occurred during fetching
  * - refetch: Function to manually refetch data
  */
-const useSaleOfferData = () => {
+const useSaleOfferData = (marketCountry) => {
   const [saleOffer, setSaleOffer] = useState(null);
   const [pricing, setPricing] = useState(null);
   const [campaign, setCampaign] = useState(null);
@@ -33,7 +33,7 @@ const useSaleOfferData = () => {
 
   const fetchPromotionalData = useCallback(async () => {
     setLoading(true);
-    const market = detectMarket();
+    const market = marketCountry || detectMarket();
     setError(null);
 
     try {
@@ -92,7 +92,7 @@ const useSaleOfferData = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [marketCountry]);
 
   useEffect(() => {
     fetchPromotionalData();
