@@ -32,13 +32,30 @@ export const getMarketPricing = (country, pricing = {}) => {
 };
 
 export const detectMarket = () => {
+  if (typeof window === 'undefined') return 'US';
+
   const locale = typeof navigator !== 'undefined' ? navigator.language : '';
-  const country = locale.split('-')[1]?.toUpperCase();
-  return MARKET_OPTIONS.some((market) => market.country === country) ? country : 'US';
+  const localeCountry = locale.split('-')[1]?.toUpperCase();
+  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+  const timezoneCountry = timezone.split('/')[0] === 'America' ? 'US' : timezone.split('/')[0] === 'Asia' && timezone.includes('Dubai') ? 'AE' : '';
+
+  return MARKET_OPTIONS.some((market) => market.country === localeCountry)
+    ? localeCountry
+    : MARKET_OPTIONS.some((market) => market.country === timezoneCountry)
+      ? timezoneCountry
+      : 'US';
+};
+
+export const getStoredMarket = () => {
+  if (typeof window === 'undefined') return null;
+  const stored = window.localStorage.getItem('billbytekot_market');
+  return MARKET_OPTIONS.some((market) => market.country === stored) ? stored : null;
 };
 
 export const saveMarket = (country) => {
-  if (typeof window !== 'undefined') window.localStorage.setItem('billbytekot_market', country);
+  if (typeof window !== 'undefined' && MARKET_OPTIONS.some((market) => market.country === country)) {
+    window.localStorage.setItem('billbytekot_market', country);
+  }
 };
 
 export default MARKET_OPTIONS;

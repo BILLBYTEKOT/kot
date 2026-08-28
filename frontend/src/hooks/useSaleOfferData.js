@@ -33,7 +33,7 @@ const useSaleOfferData = (marketCountry) => {
 
   const fetchPromotionalData = useCallback(async () => {
     setLoading(true);
-    const market = detectMarket();
+    const market = marketCountry || detectMarket();
     setError(null);
 
     try {

@@ -19,7 +19,7 @@ import EarlyAdopterBanner from "../components/EarlyAdopterBanner";
 import QROrderingSection from "../components/QROrderingSection";
 import useSaleOfferData from "../hooks/useSaleOfferData";
 import { HomepageSEO, FAQPageSchemaInjector } from "../seo";
-import { MARKET_OPTIONS, detectMarket, getMarketPricing, saveMarket } from "../utils/marketPricing";
+import { MARKET_OPTIONS, detectMarket, getMarketPricing, getStoredMarket, saveMarket } from "../utils/marketPricing";
 import {
   ChefHat,
   Sparkles,
@@ -683,7 +683,7 @@ const LandingPage = () => {
   const [email, setEmail] = useState("");
   const [showMobileAppPopup, setShowMobileAppPopup] = useState(false);
   
-  const [marketCountry, setMarketCountry] = useState(detectMarket);
+  const [marketCountry, setMarketCountry] = useState(() => getStoredMarket() || detectMarket());
 
   // Use centralized sale offer data hook for consistent data across all banners
   // Requirements: 8.1, 8.2 - Banner Data Consistency
@@ -837,12 +837,12 @@ const LandingPage = () => {
       originalPrice = marketPricing.regularDisplay;
       discountPercent = saleOffer.discount_percent || 5;
     } else if (isPricingCampaignActive) {
-      currentPrice = pricing?.campaign_price_display || '₹1899';
-      originalPrice = pricing?.regular_price_display || '₹1999';
+      currentPrice = pricing?.campaign_price_display || marketPricing.saleDisplay;
+      originalPrice = pricing?.regular_price_display || marketPricing.regularDisplay;
       discountPercent = pricing?.campaign_discount_percent || 5;
     } else {
-      currentPrice = '₹1899';
-      originalPrice = '₹1999';
+      currentPrice = marketPricing.saleDisplay;
+      originalPrice = marketPricing.regularDisplay;
       discountPercent = 5;
     }
     
