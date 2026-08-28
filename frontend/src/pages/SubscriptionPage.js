@@ -12,7 +12,7 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { invalidateShared } from '../utils/sharedDataCache';
-import { formatCurrency, getMarketCurrency } from '../utils/currency';
+import { convertFromINR, formatCurrency, getMarketCurrency } from '../utils/currency';
 
 const SubscriptionPage = ({ user }) => {
   const [subscriptionStatus, setSubscriptionStatus] = useState(null);
@@ -28,11 +28,17 @@ const SubscriptionPage = ({ user }) => {
   const navigate = useNavigate();
 
   const plans = {
-    daily: { days: 1, months: 0, price: 19, originalPrice: 25, discount: 24, label: '1 Day', perMonth: 19 },
-    quarterly: { months: 3, price: 521, originalPrice: 549, discount: 5, label: '3 Months', perMonth: 174 },
-    halfYearly: { months: 6, price: 949, originalPrice: 999, discount: 5, label: '6 Months', perMonth: 158 },
-    yearly: { months: 12, price: 1899, originalPrice: 1999, discount: 5, label: '1 Year', perMonth: 158, popular: true }
+    quarterly: { months: 3, priceINR: 521, originalPriceINR: 549, discount: 5, label: '3 Months', perMonthINR: 174 },
+    halfYearly: { months: 6, priceINR: 949, originalPriceINR: 999, discount: 5, label: '6 Months', perMonthINR: 158 },
+    yearly: { months: 12, priceINR: 1899, originalPriceINR: 1999, discount: 5, label: '1 Year', perMonthINR: 158, popular: true }
   };
+
+  const getLocalizedPlan = (plan) => ({
+    ...plan,
+    price: convertFromINR(plan.priceINR, marketCurrency.currency),
+    originalPrice: convertFromINR(plan.originalPriceINR, marketCurrency.currency),
+    perMonth: convertFromINR(plan.perMonthINR, marketCurrency.currency),
+  });
 
   const displayPrice = (amount) => formatCurrency(amount, marketCurrency.currency, marketCurrency.locale);
 
@@ -129,7 +135,7 @@ const SubscriptionPage = ({ user }) => {
     setLoading(true);
     try {
       // Get selected plan details
-      const plan = plans[selectedPlan];
+      const plan = getLocalizedPlan(plans[selectedPlan]);
       
       // Create order with selected plan
       const response = await axios.post(`${API}/subscription/create-order`, {
@@ -139,7 +145,7 @@ const SubscriptionPage = ({ user }) => {
         currency: marketCurrency.currency
       });
       
-      let finalAmount = response.data.amount || (plan.price * 100); // Convert to paise
+      let finalAmount = response.data.amount || (plan.price * 100); // Amount in selected currency minor units
       const planInfo = ` (${plan.label})`;
       
       // Store referral discount info for display
@@ -449,9 +455,9 @@ const SubscriptionPage = ({ user }) => {
                       )}
                       <div className="text-center">
                         <p className="font-bold text-gray-900">{plan.label}</p>
-                        <p className="text-2xl font-black text-violet-600">{displayPrice(plan.price)}</p>
+                        <p className="text-2xl font-black text-violet-600">{displayPrice(getLocalizedPlan(plan).price)}</p>
                         {plan.discount > 0 && (
-                          <p className="text-xs text-gray-400 line-through">{displayPrice(plan.originalPrice)}</p>
+                          <p className="text-xs text-gray-400 line-through">{displayPrice(getLocalizedPlan(plan).originalPrice)}</p>
                         )}
                         <p className="text-xs text-gray-500 mt-1">₹{plan.perMonth}/mo</p>
                         {plan.discount > 0 && (
@@ -478,13 +484,13 @@ const SubscriptionPage = ({ user }) => {
                   )}
                 </div>
                 <p className="text-5xl font-black bg-gradient-to-r from-violet-600 to-purple-600 bg-clip-text text-transparent">
-                  {displayPrice(plans[selectedPlan].price)}
+                  {displayPrice(getLocalizedPlan(plans[selectedPlan]).price)}
                 </p>
                 <p className="text-gray-600 font-medium">
                   for {plans[selectedPlan].months} {plans[selectedPlan].months === 1 ? 'month' : 'months'}
                 </p>
                 <p className="text-sm text-violet-600 font-bold mt-1">
-                  Just {displayPrice(plans[selectedPlan].perMonth)}/month
+                  Just {displayPrice(getLocalizedPlan(plans[selectedPlan]).perMonth)}/month
                 </p>
               </div>
 
@@ -558,7 +564,7 @@ const SubscriptionPage = ({ user }) => {
                 <Button onClick={handleSubscribe} disabled={loading}
                   className="w-full h-14 text-lg font-bold shadow-lg transform transition-all duration-300 hover:scale-[1.02] hover:shadow-xl bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700">
                   <Rocket className="w-5 h-5 mr-2 animate-bounce" />
-                  {loading ? 'Processing...' : `Get ${plans[selectedPlan].label} - ₹${plans[selectedPlan].price}`}
+                  {loading ? 'Processing...' : `Get ${plans[selectedPlan].label} - ${displayPrice(getLocalizedPlan(plans[selectedPlan]).price)}`}
                 </Button>
               )}
             </CardContent>
