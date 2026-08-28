@@ -24,7 +24,10 @@ export const convertFromINR = (amount, currency = 'INR') =>
   Math.round((Number(amount) || 0) * (INR_RATES[currency] || 1));
 
 export const getMarketCurrency = () => {
-  const language = typeof navigator !== 'undefined' ? navigator.language || '' : '';
+  if (typeof navigator === 'undefined') return MARKET_CURRENCIES.IN;
+  const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+  if (timezone === 'Asia/Kolkata' || timezone === 'Asia/Calcutta') return MARKET_CURRENCIES.IN;
+  const language = navigator.language || '';
   const region = language.split('-')[1]?.toUpperCase();
   return MARKET_CURRENCIES[region] || MARKET_CURRENCIES.IN;
 };

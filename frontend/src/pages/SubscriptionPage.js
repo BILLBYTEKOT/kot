@@ -459,7 +459,7 @@ const SubscriptionPage = ({ user }) => {
                         {plan.discount > 0 && (
                           <p className="text-xs text-gray-400 line-through">{displayPrice(getLocalizedPlan(plan).originalPrice)}</p>
                         )}
-                        <p className="text-xs text-gray-500 mt-1">₹{plan.perMonth}/mo</p>
+                        <p className="text-xs text-gray-500 mt-1">{displayPrice(getLocalizedPlan(plan).perMonth)}/mo</p>
                         {plan.discount > 0 && (
                           <span className="inline-block mt-1 bg-green-100 text-green-700 text-[10px] px-2 py-0.5 rounded-full font-bold">
                             Save {plan.discount}%
