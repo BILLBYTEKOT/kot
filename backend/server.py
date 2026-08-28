@@ -17130,9 +17130,17 @@ async def get_public_sale_offer():
         raise HTTPException(status_code=500, detail=str(e))
 
 @api_router.get("/public/pricing")
-async def get_public_pricing():
-    """Get current pricing for public display with campaign logic"""
+async def get_public_pricing(country: str = "US"):
+    """Get current pricing for public display with market-aware native prices."""
     try:
+        market_pricing = {
+            "IN": {"currency": "INR", "regular": 1999, "sale": 1899},
+            "US": {"currency": "USD", "regular": 29, "sale": 24},
+            "GB": {"currency": "GBP", "regular": 24, "sale": 20},
+            "AE": {"currency": "AED", "regular": 109, "sale": 89},
+            "CA": {"currency": "CAD", "regular": 39, "sale": 32},
+            "AU": {"currency": "AUD", "regular": 45, "sale": 37},
+        }
         pricing = await db.pricing_config.find_one({}, {"_id": 0})
         now = datetime.now(timezone.utc)
         
@@ -17153,7 +17161,8 @@ async def get_public_pricing():
                 "early_adopter_spots_left": 850,
                 "trial_expired_discount": 5,
                 "trial_expired_price": 1899.0,
-                "trial_expired_price_display": "₹1899"
+                "trial_expired_price_display": "₹1899",
+                "market_pricing": market_pricing
             }
         
         regular_price = pricing.get("regular_price", 1999.0)
@@ -17213,7 +17222,8 @@ async def get_public_pricing():
             "campaign_name": campaign_name if campaign_active else None,
             "campaign_discount_percent": campaign_discount_percent if campaign_active else 0,
             "campaign_start_date": campaign_start_date,
-            "campaign_end_date": campaign_end_date
+            "campaign_end_date": campaign_end_date,
+            "market_pricing": pricing.get("market_pricing", market_pricing)
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
