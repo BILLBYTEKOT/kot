@@ -1546,7 +1546,7 @@ const LandingPage = () => {
                             <div className="flex items-center gap-2">
                               <span className="w-8 h-8 bg-white/20 rounded-lg flex items-center justify-center text-white">←</span>
                               <div>
-                                <p className="text-white font-bold text-sm">Add Items</p>
+                                <p className="text-white font-bold text-sm">Menu</p>
                                 <p className="text-white/70 text-[10px]">Counter Order</p>
                               </div>
                             </div>
