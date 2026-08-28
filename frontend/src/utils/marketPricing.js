@@ -17,7 +17,7 @@ const MARKET_PRICES = {
 };
 
 export const getMarket = (country) =>
-  MARKET_OPTIONS.find((market) => market.country === country) || MARKET_OPTIONS[1];
+  MARKET_OPTIONS.find((market) => market.country === country) || MARKET_OPTIONS[0];
 
 export const getMarketPricing = (country, pricing = {}) => {
   const market = getMarket(country);
@@ -37,13 +37,21 @@ export const detectMarket = () => {
   const locale = typeof navigator !== 'undefined' ? navigator.language : '';
   const localeCountry = locale.split('-')[1]?.toUpperCase();
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
-  const timezoneCountry = timezone.split('/')[0] === 'America' ? 'US' : timezone.split('/')[0] === 'Asia' && timezone.includes('Dubai') ? 'AE' : '';
+  const timezoneCountry = timezone === 'Asia/Kolkata' || timezone === 'Asia/Calcutta'
+    ? 'IN'
+    : timezone.includes('Dubai') || timezone.includes('Abu_Dhabi')
+      ? 'AE'
+      : timezone.split('/')[0] === 'America'
+        ? 'US'
+        : '';
 
-  return MARKET_OPTIONS.some((market) => market.country === localeCountry)
-    ? localeCountry
-    : MARKET_OPTIONS.some((market) => market.country === timezoneCountry)
-      ? timezoneCountry
-      : 'US';
+  // Prefer the device timezone, then the browser locale. India must not fall
+  // through to GBP/USD simply because the browser language is English.
+  return MARKET_OPTIONS.some((market) => market.country === timezoneCountry)
+    ? timezoneCountry
+    : MARKET_OPTIONS.some((market) => market.country === localeCountry)
+      ? localeCountry
+      : 'IN';
 };
 
 export const getStoredMarket = () => {
