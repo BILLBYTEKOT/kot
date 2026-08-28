@@ -32,8 +32,6 @@ export const getMarketPricing = (country, pricing = {}) => {
 };
 
 export const detectMarket = () => {
-  const saved = typeof window !== 'undefined' ? window.localStorage.getItem('billbytekot_market') : null;
-  if (saved && MARKET_OPTIONS.some((market) => market.country === saved)) return saved;
   const locale = typeof navigator !== 'undefined' ? navigator.language : '';
   const country = locale.split('-')[1]?.toUpperCase();
   return MARKET_OPTIONS.some((market) => market.country === country) ? country : 'US';
