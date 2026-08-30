@@ -217,6 +217,87 @@ button:active {
   .reports-page [role="tablist"] { max-width: calc(100vw - 2rem); }
 }
 
+/* Reports dashboard: reference layout + responsive behavior */
+.reports-page {
+  width: 100%;
+  max-width: none;
+  padding: 1.25rem clamp(1rem, 2vw, 2rem) 2rem;
+  background: #f8fafc;
+}
+.reports-page > .reports-page > div,
+.reports-page > div { min-width: 0; }
+.reports-page > div:nth-child(2) {
+  padding: 0 0 0.75rem;
+  border-bottom: 1px solid #dbe3ee;
+}
+.reports-page h1 { color: #0f172a; font-size: clamp(1.6rem, 2.2vw, 2.25rem) !important; }
+.reports-page h1 + p { color: #64748b; margin-top: 0.35rem; }
+.reports-page [role="tablist"] {
+  width: 100%;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  background: #f1f5f9 !important;
+  border: 1px solid #dbe3ee;
+  border-radius: 0.7rem !important;
+  padding: 0.2rem !important;
+}
+.reports-page [role="tab"] {
+  flex: 1 0 auto;
+  min-height: 2.25rem;
+  color: #475569;
+  font-size: 0.72rem;
+  font-weight: 700;
+  border-radius: 0.5rem !important;
+}
+.reports-page [role="tab"][data-state="active"] {
+  color: #6d28d9 !important;
+  background: #fff !important;
+  box-shadow: 0 1px 4px rgb(15 23 42 / 0.12) !important;
+}
+.reports-page [data-testid="daily-orders-card"],
+.reports-page [data-testid="daily-sales-card"],
+.reports-page [data-testid="avg-order-card"],
+.reports-page [data-testid="forecast-card"],
+.reports-page [data-testid="export-card"],
+.reports-page [data-testid="range-orders-list"] {
+  border: 1px solid #dbe3ee !important;
+  border-radius: 0.75rem !important;
+  box-shadow: 0 4px 14px rgb(15 23 42 / 0.05) !important;
+}
+.reports-page [data-testid="daily-orders-card"] .text-violet-600 { color: #7c3aed !important; }
+.reports-page [data-testid="daily-sales-card"] .text-green-600 { color: #059669 !important; }
+.reports-page [data-testid="avg-order-card"] .text-blue-600 { color: #2563eb !important; }
+.reports-page [data-testid="export-card"] { background: #fff; }
+.reports-page [data-testid="export-card"] input[type="date"] {
+  min-height: 2.55rem;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.5rem;
+}
+.reports-page [data-testid="export-card"] button {
+  border-radius: 0.5rem;
+}
+.reports-page [data-testid="export-card"] .bg-violet-50 {
+  background: #f5f3ff !important;
+  border-color: #ddd6fe !important;
+}
+@media (min-width: 768px) {
+  .reports-page > div:nth-child(2) { display: flex; align-items: end; justify-content: space-between; }
+  .reports-page [data-testid="export-card"] .grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(16rem, 0.8fr); }
+}
+@media (max-width: 767px) {
+  .reports-page { padding: 1rem 0.75rem 5rem; }
+  .reports-page > div:nth-child(2) { padding-bottom: 0.75rem; }
+  .reports-page [role="tablist"] { width: calc(100vw - 1.5rem); margin-left: 0; }
+  .reports-page [role="tab"] { flex: 0 0 auto; padding-inline: 0.9rem; }
+  .reports-page [data-testid="export-card"] .grid { gap: 0.75rem; }
+  .reports-page [data-testid="range-orders-list"] { overflow: hidden; }
+  .reports-page table { min-width: 760px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .reports-page *, .reports-page *::before, .reports-page *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+
 /* ============================================
    RESPONSIVE & ADVANCED UI STYLES
    ============================================ */
