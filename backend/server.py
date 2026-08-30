@@ -9763,9 +9763,10 @@ async def export_report(
     current_user: dict = Depends(get_current_user)
 ):
     user_org_id = get_secure_org_id(current_user)
-    # Parse dates and make them timezone-aware (UTC)
-    start = datetime.fromisoformat(start_date).replace(tzinfo=timezone.utc)
-    end = datetime.fromisoformat(end_date).replace(hour=23, minute=59, second=59, tzinfo=timezone.utc)
+    # Date inputs are calendar dates in India; query MongoDB using UTC bounds.
+    IST = timezone(timedelta(hours=5, minutes=30))
+    start = datetime.fromisoformat(start_date).replace(tzinfo=IST).astimezone(timezone.utc)
+    end = datetime.fromisoformat(end_date).replace(hour=23, minute=59, second=59, microsecond=999999, tzinfo=IST).astimezone(timezone.utc)
 
     orders = await db.orders.find({
         "organization_id": user_org_id
