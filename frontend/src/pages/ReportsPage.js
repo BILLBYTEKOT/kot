@@ -1,7 +1,8 @@
-﻿import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import axios from "axios";
 import { API } from "../App";
 import { fetchMenu, fetchBusinessSettings as fetchBusinessSettingsShared } from "../utils/sharedDataCache";
+import { formatInvoiceNumber, formatInvoiceDisplay, formatTechnicalId, getSearchableOrderIds } from "../utils/invoiceNumberFormatter";
 import Layout from "../components/Layout";
 import TrialBanner from "../components/TrialBanner";
 import { Button } from "../components/ui/button";
@@ -790,7 +791,7 @@ const ReportsPage = ({ user }) => {
 
       const csvContent = [
         [
-          "Order ID",
+          "Invoice #",
           "Table",
           "Waiter",
           "Customer",
@@ -802,7 +803,7 @@ const ReportsPage = ({ user }) => {
           "Date",
         ],
         ...orders.map((order) => [
-          order.id,
+          formatInvoiceNumber(order),
           order.table_number,
           order.waiter_name,
           order.customer_name || "N/A",
@@ -944,7 +945,7 @@ const ReportsPage = ({ user }) => {
             <tbody>
               ${orders.map(order => `
                 <tr>
-                  <td>${order.id.slice(0, 8)}</td>
+                  <td>${formatInvoiceNumber(order)}</td>
                   <td>${order.table_number}</td>
                   <td>${order.waiter_name}</td>
                   <td>${order.customer_name || 'N/A'}</td>
@@ -1140,7 +1141,7 @@ const ReportsPage = ({ user }) => {
             <tbody>
               ${orders.map(order => `
                 <tr>
-                  <td>${order.id.slice(0, 8)}</td>
+                  <td>${formatInvoiceNumber(order)}</td>
                   <td>${new Date(order.created_at).toLocaleDateString()}</td>
                   <td>${order.table_number}</td>
                   <td>${order.waiter_name}</td>
@@ -1339,7 +1340,7 @@ const ReportsPage = ({ user }) => {
             <tbody>
               ${orders.map(order => `
                 <tr>
-                  <td>${order.id.slice(0, 8)}</td>
+                  <td>${formatInvoiceNumber(order)}</td>
                   <td>${new Date(order.created_at).toLocaleDateString()}</td>
                   <td>${order.table_number}</td>
                   <td>${order.waiter_name}</td>
@@ -1686,7 +1687,7 @@ const ReportsPage = ({ user }) => {
                 <tbody>
                   ${orders.slice(0, 50).map(order => `
                     <tr>
-                      <td>${order.id.slice(0, 8)}</td>
+                      <td>${formatInvoiceNumber(order)}</td>
                       <td>${new Date(order.created_at).toLocaleDateString()}</td>
                       <td>${order.table_number}</td>
                       <td>${order.waiter_name}</td>
@@ -1803,10 +1804,11 @@ const ReportsPage = ({ user }) => {
   const filteredOrders = useMemo(() => {
     return (reportOrders || []).filter(o => {
       const q = (searchQuery || '').toLowerCase();
+      // Use the new searchable IDs function for comprehensive search
+      const searchableText = getSearchableOrderIds(o);
       const matchSearch = !q ||
-        String(o.bill_number || o.id || '').toLowerCase().includes(q) ||
+        searchableText.includes(q) ||
         (o.customer_name || '').toLowerCase().includes(q) ||
-        String(o.order_number || '').toLowerCase().includes(q) ||
         (o.waiter_name || '').toLowerCase().includes(q);
       const matchStatus = !filterStatus || o.status === filterStatus;
       const matchPayment = !filterPayment || normalizePayment(o.payment_method) === filterPayment;
@@ -1841,14 +1843,14 @@ const ReportsPage = ({ user }) => {
       const priorEnd = new Date(start); priorEnd.setDate(priorEnd.getDate() - 1);
       const priorStart = new Date(priorEnd); priorStart.setDate(priorStart.getDate() - diffDays + 1);
       const fmt = d => d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
-      return `${fmt(priorStart)} – ${fmt(priorEnd)}`;
+      return `${fmt(priorStart)} � ${fmt(priorEnd)}`;
     } catch { return ''; }
   }, [dateRange]);
 
   const currentRangeLabel = useMemo(() => {
     try {
       const fmt = s => new Date(s).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
-      return `${fmt(dateRange.start_date)} – ${fmt(dateRange.end_date)}`;
+      return `${fmt(dateRange.start_date)} � ${fmt(dateRange.end_date)}`;
     } catch { return ''; }
   }, [dateRange]);
 
@@ -1880,7 +1882,7 @@ const ReportsPage = ({ user }) => {
       <div className="p-3 md:p-6 space-y-4 bg-gray-50 min-h-screen">
         <TrialBanner user={user} />
 
-        {/* ── PAGE HEADER ── */}
+        {/* -- PAGE HEADER -- */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white p-4 rounded-xl shadow-sm">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-indigo-100 rounded-lg">
@@ -1904,12 +1906,12 @@ const ReportsPage = ({ user }) => {
             </Button>
             <Button size="sm" onClick={handleExportCSV} disabled={exportLoading}
               className="gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white">
-              <Download className="h-4 w-4" /> {exportLoading ? 'Exporting…' : 'Export'}
+              <Download className="h-4 w-4" /> {exportLoading ? 'Exporting�' : 'Export'}
             </Button>
           </div>
         </div>
 
-        {/* ── TABS ── */}
+        {/* -- TABS -- */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
           <div className="bg-white rounded-xl shadow-sm overflow-hidden">
             <TabsList className="flex w-full overflow-x-auto whitespace-nowrap h-auto bg-gray-100 rounded-none p-1 gap-0.5 border-b border-gray-200">
@@ -1932,7 +1934,7 @@ const ReportsPage = ({ user }) => {
             </TabsList>
           </div>
 
-          {/* ══ OVERVIEW TAB ══ */}
+          {/* -- OVERVIEW TAB -- */}
           <TabsContent value="overview" className="space-y-4">
 
             {/* Date Preset Bar */}
@@ -1964,30 +1966,30 @@ const ReportsPage = ({ user }) => {
                       <input type="date" value={dateRange.start_date}
                         onChange={e => setDateRange(r => ({ ...r, start_date: e.target.value }))}
                         className="text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-300" />
-                      <span className="text-gray-400 text-sm">–</span>
+                      <span className="text-gray-400 text-sm">�</span>
                       <input type="date" value={dateRange.end_date}
                         onChange={e => setDateRange(r => ({ ...r, end_date: e.target.value }))}
                         className="text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-300" />
                     </div>
                   )}
-                  <span className="text-sm text-gray-600 font-medium ml-1">→ {currentRangeLabel}</span>
+                  <span className="text-sm text-gray-600 font-medium ml-1">? {currentRangeLabel}</span>
                   <span className="text-xs text-gray-400 ml-auto hidden sm:block">Compared to: {priorPeriodLabel}</span>
                 </div>
                 <p className="sm:hidden mt-1 text-xs text-gray-400">Compared to: {priorPeriodLabel}</p>
               </CardContent>
             </Card>
 
-            {/* KPI Cards — 8 cards */}
+            {/* KPI Cards � 8 cards */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               {[
-                { label: 'Total Sales', value: `₹${kpiCurrent.totalSales.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, Icon: TrendingUp, bg: 'bg-indigo-100', ic: 'text-indigo-600', trend: trendPct(kpiCurrent.totalSales, kpiPrior.totalSales) },
+                { label: 'Total Sales', value: `?${kpiCurrent.totalSales.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, Icon: TrendingUp, bg: 'bg-indigo-100', ic: 'text-indigo-600', trend: trendPct(kpiCurrent.totalSales, kpiPrior.totalSales) },
                 { label: 'Total Orders', value: kpiCurrent.totalOrders.toLocaleString('en-IN'), Icon: ShoppingCart, bg: 'bg-blue-100', ic: 'text-blue-600', trend: trendPct(kpiCurrent.totalOrders, kpiPrior.totalOrders) },
-                { label: 'Average Order Value', value: `₹${kpiCurrent.avgOrderValue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, Icon: BarChart2, bg: 'bg-green-100', ic: 'text-green-600', trend: trendPct(kpiCurrent.avgOrderValue, kpiPrior.avgOrderValue) },
+                { label: 'Average Order Value', value: `?${kpiCurrent.avgOrderValue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, Icon: BarChart2, bg: 'bg-green-100', ic: 'text-green-600', trend: trendPct(kpiCurrent.avgOrderValue, kpiPrior.avgOrderValue) },
                 { label: 'Items Sold', value: kpiCurrent.itemsSold.toLocaleString('en-IN'), Icon: Package, bg: 'bg-orange-100', ic: 'text-orange-600', trend: trendPct(kpiCurrent.itemsSold, kpiPrior.itemsSold) },
                 { label: 'Customers', value: kpiCurrent.customers.toLocaleString('en-IN'), Icon: Users, bg: 'bg-teal-100', ic: 'text-teal-600', trend: trendPct(kpiCurrent.customers, kpiPrior.customers) },
-                { label: 'Discounts', value: `₹${kpiCurrent.discounts.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, Icon: Tag, bg: 'bg-pink-100', ic: 'text-pink-600', trend: trendPct(kpiCurrent.discounts, kpiPrior.discounts) },
-                { label: 'Taxes', value: `₹${kpiCurrent.taxes.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, Icon: Receipt, bg: 'bg-yellow-100', ic: 'text-yellow-600', trend: trendPct(kpiCurrent.taxes, kpiPrior.taxes) },
-                { label: 'Net Revenue', value: `₹${kpiCurrent.netRevenue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, Icon: DollarSign, bg: 'bg-emerald-100', ic: 'text-emerald-600', trend: trendPct(kpiCurrent.netRevenue, kpiPrior.netRevenue) },
+                { label: 'Discounts', value: `?${kpiCurrent.discounts.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, Icon: Tag, bg: 'bg-pink-100', ic: 'text-pink-600', trend: trendPct(kpiCurrent.discounts, kpiPrior.discounts) },
+                { label: 'Taxes', value: `?${kpiCurrent.taxes.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, Icon: Receipt, bg: 'bg-yellow-100', ic: 'text-yellow-600', trend: trendPct(kpiCurrent.taxes, kpiPrior.taxes) },
+                { label: 'Net Revenue', value: `?${kpiCurrent.netRevenue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, Icon: DollarSign, bg: 'bg-emerald-100', ic: 'text-emerald-600', trend: trendPct(kpiCurrent.netRevenue, kpiPrior.netRevenue) },
               ].map(({ label, value, Icon, bg, ic, trend }) => {
                 const isUp = trend >= 0;
                 const TIcon = isUp ? ArrowUp : ArrowDown;
@@ -2011,7 +2013,7 @@ const ReportsPage = ({ user }) => {
 
             {/* Charts Row */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              {/* Sales Trend Chart — 2 cols */}
+              {/* Sales Trend Chart � 2 cols */}
               <Card className="shadow-sm lg:col-span-2">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm font-semibold text-gray-800">Sales Trend (by Day)</CardTitle>
@@ -2028,13 +2030,13 @@ const ReportsPage = ({ user }) => {
                         <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#9ca3af' }}
                           tickFormatter={d => { try { const dt = new Date(d); return `${dt.getDate()} ${dt.toLocaleString('en', { month: 'short' })}`; } catch { return d; } }} />
                         <YAxis yAxisId="left" tick={{ fontSize: 10, fill: '#9ca3af' }}
-                          tickFormatter={v => `₹${v >= 1000 ? (v / 1000).toFixed(0) + 'k' : v}`} />
+                          tickFormatter={v => `?${v >= 1000 ? (v / 1000).toFixed(0) + 'k' : v}`} />
                         <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10, fill: '#9ca3af' }} />
                         <RechartsTooltip formatter={(value, name) =>
-                          name === 'Sales (₹)' ? [`₹${Number(value).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, name] : [value, name]} />
+                          name === 'Sales (?)' ? [`?${Number(value).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, name] : [value, name]} />
                         <Legend wrapperStyle={{ fontSize: '11px' }} />
                         <Bar yAxisId="right" dataKey="orders" name="Orders" fill="#3b82f6" opacity={0.6} radius={[2, 2, 0, 0]} />
-                        <Line yAxisId="left" type="monotone" dataKey="sales" name="Sales (₹)" stroke="#8b5cf6" strokeWidth={2} dot={false} />
+                        <Line yAxisId="left" type="monotone" dataKey="sales" name="Sales (?)" stroke="#8b5cf6" strokeWidth={2} dot={false} />
                       </ComposedChart>
                     </ResponsiveContainer>
                   )}
@@ -2061,13 +2063,13 @@ const ReportsPage = ({ user }) => {
                               <Cell key={entry.name} fill={PAYMENT_COLORS[entry.name] || '#6b7280'} />
                             ))}
                           </Pie>
-                          <RechartsTooltip formatter={(v, n) => [`₹${Number(v).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, n]} />
+                          <RechartsTooltip formatter={(v, n) => [`?${Number(v).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, n]} />
                           <Legend iconSize={8} wrapperStyle={{ fontSize: '11px' }} />
                         </PieChart>
                       </ResponsiveContainer>
                       <div className="absolute pointer-events-none" style={{ top: '32%', left: '50%', transform: 'translate(-50%,-50%)', textAlign: 'center' }}>
                         <p className="text-xs text-gray-500 leading-tight">Total</p>
-                        <p className="text-xs font-bold text-gray-800">₹{kpiCurrent.totalSales.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</p>
+                        <p className="text-xs font-bold text-gray-800">?{kpiCurrent.totalSales.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</p>
                       </div>
                     </div>
                   )}
@@ -2081,7 +2083,7 @@ const ReportsPage = ({ user }) => {
                 <CardTitle className="text-sm font-semibold text-gray-800">Top Selling Items</CardTitle>
                 <button onClick={() => setActiveTab('items')}
                   className="text-xs text-indigo-600 hover:text-indigo-800 font-medium">
-                  View All Best Sellers →
+                  View All Best Sellers ?
                 </button>
               </CardHeader>
               <CardContent>
@@ -2101,9 +2103,9 @@ const ReportsPage = ({ user }) => {
                       {bestSelling.slice(0, 7).map((item, idx) => (
                         <tr key={idx} className="border-b last:border-0 hover:bg-gray-50">
                           <td className="py-2 pr-3 text-gray-400 text-sm">{idx + 1}</td>
-                          <td className="py-2 pr-3 font-medium text-gray-800">{item.name || item.item_name || '–'}</td>
+                          <td className="py-2 pr-3 font-medium text-gray-800">{item.name || item.item_name || '�'}</td>
                           <td className="py-2 pr-3 text-right text-gray-700">{item.total_quantity || item.quantity_sold || 0}</td>
-                          <td className="py-2 text-right font-medium text-gray-800">₹{Number(item.total_revenue || item.revenue || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                          <td className="py-2 text-right font-medium text-gray-800">?{Number(item.total_revenue || item.revenue || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -2187,26 +2189,26 @@ const ReportsPage = ({ user }) => {
                       ) : (
                         paginatedOrders.map((order, i) => (
                           <tr key={order.id || i} className="hover:bg-gray-50 transition-colors">
-                            <td className="px-3 py-2.5 font-semibold text-indigo-600">{order.bill_number || `#${order.id}`}</td>
+                            <td className="px-3 py-2.5 font-semibold text-indigo-600">{formatInvoiceDisplay(order)}</td>
                             <td className="px-3 py-2.5 text-gray-600">
-                              {order.created_at ? new Date(order.created_at).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '–'}
+                              {order.created_at ? new Date(order.created_at).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '�'}
                             </td>
-                            <td className="px-3 py-2.5 text-gray-600">{order.order_number || order.id}</td>
-                            <td className="px-3 py-2.5 text-gray-600">{order.table_number ? `T-${order.table_number}` : '–'}</td>
+                            <td className="px-3 py-2.5 text-gray-600">{formatTechnicalId(order)}</td>
+                            <td className="px-3 py-2.5 text-gray-600">{order.table_number ? `T-${order.table_number}` : '�'}</td>
                             <td className="px-3 py-2.5 text-gray-700">{order.customer_name || 'Walk-in Customer'}</td>
-                            <td className="px-3 py-2.5 text-gray-600">{order.waiter_name || '–'}</td>
+                            <td className="px-3 py-2.5 text-gray-600">{order.waiter_name || '�'}</td>
                             <td className="px-3 py-2.5 text-gray-600">{(order.items || []).length}</td>
-                            <td className="px-3 py-2.5 text-gray-700">₹{Number(order.subtotal || 0).toFixed(2)}</td>
-                            <td className="px-3 py-2.5 text-gray-600">₹{Number(order.discount || 0).toFixed(2)}</td>
-                            <td className="px-3 py-2.5 text-gray-600">₹{Number(order.tax || 0).toFixed(2)}</td>
-                            <td className="px-3 py-2.5 text-gray-600">₹{Number(order.charges || 0).toFixed(2)}</td>
-                            <td className="px-3 py-2.5 font-bold text-gray-900">₹{Number(order.total || 0).toFixed(2)}</td>
-                            <td className="px-3 py-2.5 text-gray-700">₹{Number(order.paid_amount != null ? order.paid_amount : (order.total || 0)).toFixed(2)}</td>
-                            <td className="px-3 py-2.5 text-gray-600">₹{Number(order.balance || 0).toFixed(2)}</td>
+                            <td className="px-3 py-2.5 text-gray-700">?{Number(order.subtotal || 0).toFixed(2)}</td>
+                            <td className="px-3 py-2.5 text-gray-600">?{Number(order.discount || 0).toFixed(2)}</td>
+                            <td className="px-3 py-2.5 text-gray-600">?{Number(order.tax || 0).toFixed(2)}</td>
+                            <td className="px-3 py-2.5 text-gray-600">?{Number(order.charges || 0).toFixed(2)}</td>
+                            <td className="px-3 py-2.5 font-bold text-gray-900">?{Number(order.total || 0).toFixed(2)}</td>
+                            <td className="px-3 py-2.5 text-gray-700">?{Number(order.paid_amount != null ? order.paid_amount : (order.total || 0)).toFixed(2)}</td>
+                            <td className="px-3 py-2.5 text-gray-600">?{Number(order.balance || 0).toFixed(2)}</td>
                             <td className="px-3 py-2.5 text-gray-600">{normalizePayment(order.payment_method)}</td>
                             <td className="px-3 py-2.5">
                               <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
-                                {order.status || '–'}
+                                {order.status || '�'}
                               </span>
                             </td>
                             <td className="px-3 py-2.5">
@@ -2244,13 +2246,13 @@ const ReportsPage = ({ user }) => {
                       {[10, 25, 50, 100].map(n => <option key={n} value={n}>{n}</option>)}
                     </select>
                     <button onClick={() => setOrdersPage(p => Math.max(1, p - 1))} disabled={ordersPage <= 1}
-                      className="px-2.5 py-1 border border-gray-200 rounded text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">‹</button>
+                      className="px-2.5 py-1 border border-gray-200 rounded text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">�</button>
                     <span className="text-xs text-gray-600">Page {totalFilteredPages === 0 ? 0 : ordersPage} of {totalFilteredPages}</span>
                     <button onClick={() => setOrdersPage(p => Math.min(totalFilteredPages, p + 1))} disabled={ordersPage >= totalFilteredPages}
-                      className="px-2.5 py-1 border border-gray-200 rounded text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">›</button>
+                      className="px-2.5 py-1 border border-gray-200 rounded text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">�</button>
                   </div>
                   <span className="font-semibold text-gray-800 text-sm">
-                    Total (Filtered): ₹{filteredTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    Total (Filtered): ?{filteredTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </span>
                 </div>
               </CardContent>
@@ -2325,7 +2327,7 @@ const ReportsPage = ({ user }) => {
                   <Card key={label} className={`reports-kpi-card reports-kpi-${tone}`}>
                     <CardContent className="p-4 sm:p-5">
                       <p className="text-xs font-medium text-slate-500">{label}</p>
-                      <p className="mt-2 text-xl font-bold text-slate-900 truncate">{currency ? "₹" : ""}{typeof value === "number" ? value.toLocaleString("en-IN", { maximumFractionDigits: 2 }) : value}</p>
+                      <p className="mt-2 text-xl font-bold text-slate-900 truncate">{currency ? "?" : ""}{typeof value === "number" ? value.toLocaleString("en-IN", { maximumFractionDigits: 2 }) : value}</p>
                       <p className="mt-1 text-xs text-emerald-600">Selected range</p>
                     </CardContent>
                   </Card>
@@ -2490,10 +2492,10 @@ const ReportsPage = ({ user }) => {
                       >
                         <div className="min-w-0 flex-1">
                           <p className="font-medium text-sm sm:text-base truncate">
-                            Order #{order.id.slice(0, 8)}
+                            {formatInvoiceDisplay(order)}
                           </p>
                           <p className="text-xs sm:text-sm text-gray-500">
-                            Table {order.table_number} • {(order.items || []).length} items • {new Date(order.created_at).toLocaleString()}
+                            Table {order.table_number} � {(order.items || []).length} items � {new Date(order.created_at).toLocaleString()}
                           </p>
                         </div>
                         <div className="flex items-center gap-2 sm:gap-3">
@@ -2566,10 +2568,10 @@ const ReportsPage = ({ user }) => {
                       >
                         <div className="min-w-0 flex-1">
                           <p className="font-medium text-sm sm:text-base truncate">
-                            Order #{order.id.slice(0, 8)}
+                            {formatInvoiceDisplay(order)}
                           </p>
                           <p className="text-xs sm:text-sm text-gray-500">
-                            Table {order.table_number} • {order.items.length} items
+                            Table {order.table_number} � {order.items.length} items
                           </p>
                         </div>
                         <p className="font-bold text-violet-600 text-sm sm:text-base ml-2 flex-shrink-0">
@@ -2699,7 +2701,7 @@ const ReportsPage = ({ user }) => {
                           <div className="min-w-0 flex-1">
                             <p className="font-semibold text-gray-900 text-sm sm:text-base truncate">{item.name || 'Unknown'}</p>
                             <p className="text-xs sm:text-sm text-gray-500 truncate">
-                              {item.category || 'N/A'} • {"\u20B9"}{(item.price || 0).toFixed(2)}
+                              {item.category || 'N/A'} � {"\u20B9"}{(item.price || 0).toFixed(2)}
                             </p>
                           </div>
                         </div>
@@ -2738,7 +2740,7 @@ const ReportsPage = ({ user }) => {
                         <div className="flex items-center justify-between text-sm">
                           <span className="font-medium text-gray-900 truncate flex-1">{cat.category}</span>
                           <span className="text-xs sm:text-sm text-gray-600 ml-2 flex-shrink-0">
-                            {cat.total_quantity || 0} • {"\u20B9"}{(cat.total_revenue || 0).toFixed(0)}
+                            {cat.total_quantity || 0} � {"\u20B9"}{(cat.total_revenue || 0).toFixed(0)}
                           </span>
                         </div>
                         <div className="w-full bg-gray-200 rounded-full h-2">
@@ -2957,7 +2959,7 @@ const ReportsPage = ({ user }) => {
                               <span className="font-medium text-gray-900 truncate flex-1">{category.name}</span>
                             </div>
                             <span className="text-xs sm:text-sm text-gray-600 ml-2 flex-shrink-0">
-                              {categoryItems.length} items • {"\u20B9"}{categoryValue.toFixed(0)}
+                              {categoryItems.length} items � {"\u20B9"}{categoryValue.toFixed(0)}
                             </span>
                           </div>
                           <div className="w-full bg-gray-200 rounded-full h-2">
@@ -3122,7 +3124,7 @@ const ReportsPage = ({ user }) => {
                               {hour.hour}:00 - {hour.hour}:59
                             </span>
                             <span className="text-[10px] sm:text-sm text-gray-600">
-                              {hour.order_count || 0} • {"\u20B9"}{(hour.total_sales || 0).toFixed(0)}
+                              {hour.order_count || 0} � {"\u20B9"}{(hour.total_sales || 0).toFixed(0)}
                             </span>
                           </div>
                           <div className="w-full bg-gray-200 rounded-full h-2 sm:h-3">
@@ -3289,8 +3291,8 @@ const ReportsPage = ({ user }) => {
                                 {customer.customer_name || 'Unknown Customer'}
                               </p>
                               <p className="text-xs sm:text-sm text-gray-500 truncate">
-                                ?? {customer.customer_phone || 'No phone'} • 
-                                ?? {customer.total_orders} orders • 
+                                ?? {customer.customer_phone || 'No phone'} � 
+                                ?? {customer.total_orders} orders � 
                                 ?? {customer.last_order_date ? new Date(customer.last_order_date).toLocaleDateString() : 'N/A'}
                               </p>
                             </div>
@@ -3338,10 +3340,10 @@ const ReportsPage = ({ user }) => {
                       <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
                         <p className="font-medium text-blue-900 mb-2">?? How Customer Balances Work:</p>
                         <ul className="text-left space-y-2 text-blue-800">
-                          <li>• Create orders with <strong>Credit</strong> payment method</li>
-                          <li>• Accept <strong>partial payments</strong> on orders</li>
-                          <li>• Track customers who owe money</li>
-                          <li>• View outstanding amounts here</li>
+                          <li>� Create orders with <strong>Credit</strong> payment method</li>
+                          <li>� Accept <strong>partial payments</strong> on orders</li>
+                          <li>� Track customers who owe money</li>
+                          <li>� View outstanding amounts here</li>
                         </ul>
                       </div>
                       
@@ -3585,7 +3587,7 @@ const ReportsPage = ({ user }) => {
                     {(viewOrderModal.order?.items || []).map((item, idx) => (
                       <div key={idx} className="flex justify-between items-center p-2 sm:p-3 bg-gray-50 rounded-lg">
                         <div className="min-w-0 flex-1">
-                          <p className="font-medium text-sm truncate">{item.quantity}× {item.name}</p>
+                          <p className="font-medium text-sm truncate">{item.quantity}� {item.name}</p>
                           {item.notes && <p className="text-xs text-orange-600 truncate">Note: {item.notes}</p>}
                         </div>
                         <p className="font-bold text-sm ml-2 flex-shrink-0">{"\u20B9"}{((item.price || 0) * (item.quantity || 0)).toFixed(0)}</p>
@@ -3661,7 +3663,7 @@ const ReportsPage = ({ user }) => {
               <CardContent className="space-y-3">
                 <p className="text-sm text-gray-600">
                   Are you sure you want to permanently delete order{" "}
-                  <strong>#{deleteConfirmModal.order.id.slice(0, 8)}</strong>
+                  <strong>{formatInvoiceDisplay(deleteConfirmModal.order)}</strong>
                 </p>
                 <div className="text-sm text-gray-600 space-y-1">
                   <p><strong>Table:</strong> {deleteConfirmModal.order.table_number}</p>
@@ -3700,7 +3702,7 @@ const ReportsPage = ({ user }) => {
               <CardContent className="space-y-3">
                 <p className="text-sm text-gray-600">
                   Are you sure you want to cancel order{" "}
-                  <strong>#{cancelConfirmModal.order.id.slice(0, 8)}</strong>
+                  <strong>{formatInvoiceDisplay(cancelConfirmModal.order)}</strong>
                 </p>
                 <div className="text-sm text-gray-600 space-y-1">
                   <p><strong>Table:</strong> {cancelConfirmModal.order.table_number}</p>
@@ -4308,5 +4310,10 @@ const DayBookTab = ({ dateRange }) => {
 };
 
 export default ReportsPage;
+
+
+
+
+
 
 
