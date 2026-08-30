@@ -163,6 +163,60 @@ button:active {
   .order-card-enter, .order-card button { transition: none !important; }
 }
 
+/* Reports & Analytics workspace */
+.reports-page {
+  --reports-ink: #111827;
+  --reports-muted: #64748b;
+  --reports-line: #e2e8f0;
+  --reports-surface: #ffffff;
+  color: var(--reports-ink);
+  max-width: 1440px;
+}
+.reports-page > div:nth-child(2) {
+  padding: 1.25rem 1.5rem 0;
+  border-bottom: 1px solid var(--reports-line);
+}
+.reports-page h1 {
+  letter-spacing: -0.045em;
+  font-size: clamp(1.75rem, 2.6vw, 2.75rem) !important;
+  line-height: 1.05;
+}
+.reports-page [role="tablist"] {
+  background: #f1f5f9 !important;
+  border: 1px solid var(--reports-line);
+  border-radius: 0.75rem !important;
+  padding: 0.25rem !important;
+  box-shadow: none !important;
+}
+.reports-page [role="tab"] {
+  color: var(--reports-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  border-radius: 0.55rem !important;
+}
+.reports-page [role="tab"][data-state="active"] {
+  color: #5b21b6 !important;
+  background: var(--reports-surface) !important;
+  box-shadow: 0 1px 3px rgb(15 23 42 / 0.12) !important;
+}
+.reports-page [data-testid$="-card"],
+.reports-page [data-testid="export-card"],
+.reports-page [data-testid="range-orders-list"],
+.reports-page [data-testid="today-orders-list"] {
+  border: 1px solid var(--reports-line) !important;
+  border-radius: 0.9rem !important;
+  box-shadow: 0 10px 28px rgb(15 23 42 / 0.06) !important;
+}
+.reports-page [data-testid$="-card"] .text-violet-600 { color: #7c3aed !important; }
+.reports-page [data-testid$="-card"] .text-green-600 { color: #059669 !important; }
+.reports-page [data-testid$="-card"] .text-blue-600 { color: #2563eb !important; }
+.reports-page input[type="date"] { border-color: var(--reports-line); background: #f8fafc; }
+.reports-page input[type="date"]:focus { border-color: #8b5cf6; box-shadow: 0 0 0 3px rgb(139 92 246 / 0.12); }
+@media (max-width: 640px) {
+  .reports-page > div:nth-child(2) { padding: 1rem 0.25rem 0; }
+  .reports-page [role="tablist"] { max-width: calc(100vw - 2rem); }
+}
+
 /* ============================================
    RESPONSIVE & ADVANCED UI STYLES
    ============================================ */
