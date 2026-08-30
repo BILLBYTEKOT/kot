@@ -41,8 +41,20 @@ import {
   Pencil,
   Trash2,
   Eye,
-  X
+  X,
+  ArrowUp,
+  ArrowDown,
+  Tag,
+  Receipt,
+  BarChart2,
+  DollarSign
 } from "lucide-react";
+import {
+  ResponsiveContainer, ComposedChart, Line, Bar,
+  XAxis, YAxis, CartesianGrid,
+  Tooltip as RechartsTooltip,
+  Legend, PieChart, Pie, Cell
+} from 'recharts';
 
 const formatLocalDate = (date = new Date()) => {
   const year = date.getFullYear();
@@ -88,6 +100,17 @@ const ReportsPage = ({ user }) => {
   const [exportLoading, setExportLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [activePreset, setActivePreset] = useState('today'); // Default to today
+
+  // New dashboard state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
+  const [filterPayment, setFilterPayment] = useState('');
+  const [filterStaff, setFilterStaff] = useState('');
+  const [filterTable, setFilterTable] = useState('');
+  const [ordersPage, setOrdersPage] = useState(1);
+  const [ordersPageSize, setOrdersPageSize] = useState(10);
+  const [activeTab, setActiveTab] = useState('overview');
+  const [priorPeriodOrders, setPriorPeriodOrders] = useState([]);
 
   // Quick date presets
   const datePresets = useMemo(() => ({
@@ -1705,44 +1728,148 @@ const ReportsPage = ({ user }) => {
     }
   };
 
+  // Prior period fetch for trend calculations
+  const fetchPriorPeriodOrders = useCallback(async () => {
+    try {
+      const start = new Date(dateRange.start_date);
+      const end = new Date(dateRange.end_date);
+      const diffDays = Math.max(1, Math.round((end - start) / 86400000) + 1);
+      const priorEnd = new Date(start);
+      priorEnd.setDate(priorEnd.getDate() - 1);
+      const priorStart = new Date(priorEnd);
+      priorStart.setDate(priorStart.getDate() - diffDays + 1);
+      const resp = await axios.get(`${API}/reports/export`, {
+        params: { start_date: formatLocalDate(priorStart), end_date: formatLocalDate(priorEnd) }
+      });
+      setPriorPeriodOrders(resp.data.orders || []);
+    } catch { setPriorPeriodOrders([]); }
+  }, [dateRange]);
+
+  useEffect(() => { fetchPriorPeriodOrders(); }, [fetchPriorPeriodOrders]);
+
+  // KPI aggregation helper
+  const aggregateKPI = useCallback((orders) => {
+    const totalSales = orders.reduce((s, o) => s + (Number(o.total) || 0), 0);
+    const totalOrders = orders.length;
+    const avgOrderValue = totalOrders ? totalSales / totalOrders : 0;
+    const itemsSold = orders.reduce((s, o) => s + (o.items || []).reduce((ss, i) => ss + (Number(i.quantity) || 0), 0), 0);
+    const customers = new Set(orders.filter(o => o.customer_name).map(o => o.customer_name)).size || totalOrders;
+    const discounts = orders.reduce((s, o) => s + (Number(o.discount) || 0), 0);
+    const taxes = orders.reduce((s, o) => s + (Number(o.tax) || 0), 0);
+    const netRevenue = totalSales - discounts - taxes;
+    return { totalSales, totalOrders, avgOrderValue, itemsSold, customers, discounts, taxes, netRevenue };
+  }, []);
+
+  const kpiCurrent = useMemo(() => aggregateKPI(reportOrders), [reportOrders, aggregateKPI]);
+  const kpiPrior = useMemo(() => aggregateKPI(priorPeriodOrders), [priorPeriodOrders, aggregateKPI]);
+
+  const trendPct = (current, prior) => {
+    if (!prior || prior === 0) return 0;
+    return ((current - prior) / prior) * 100;
+  };
+
+  const normalizePayment = (pm) => {
+    if (!pm) return 'Other';
+    const p = String(pm).toLowerCase();
+    if (p === 'cash') return 'Cash';
+    if (p === 'upi') return 'UPI';
+    if (p.includes('card')) return 'Card';
+    if (p === 'online' || p.includes('net')) return 'Online';
+    return 'Other';
+  };
+
+  const PAYMENT_COLORS = { Cash: '#10b981', UPI: '#3b82f6', Card: '#f59e0b', Online: '#8b5cf6', Other: '#6b7280' };
+
+  const salesTrendData = useMemo(() => {
+    const map = {};
+    (reportOrders || []).forEach(o => {
+      const day = o.created_at ? String(o.created_at).split('T')[0] : 'Unknown';
+      if (!map[day]) map[day] = { date: day, sales: 0, orders: 0 };
+      map[day].sales += Number(o.total) || 0;
+      map[day].orders += 1;
+    });
+    return Object.values(map).sort((a, b) => a.date.localeCompare(b.date));
+  }, [reportOrders]);
+
+  const paymentBreakdownData = useMemo(() => {
+    const map = {};
+    (reportOrders || []).forEach(o => {
+      const cat = normalizePayment(o.payment_method);
+      map[cat] = (map[cat] || 0) + (Number(o.total) || 0);
+    });
+    return Object.entries(map).map(([name, value]) => ({ name, value }));
+  }, [reportOrders]);
+
+  const filteredOrders = useMemo(() => {
+    return (reportOrders || []).filter(o => {
+      const q = (searchQuery || '').toLowerCase();
+      const matchSearch = !q ||
+        String(o.bill_number || o.id || '').toLowerCase().includes(q) ||
+        (o.customer_name || '').toLowerCase().includes(q) ||
+        String(o.order_number || '').toLowerCase().includes(q) ||
+        (o.waiter_name || '').toLowerCase().includes(q);
+      const matchStatus = !filterStatus || o.status === filterStatus;
+      const matchPayment = !filterPayment || normalizePayment(o.payment_method) === filterPayment;
+      const matchStaff = !filterStaff || o.waiter_name === filterStaff;
+      const matchTable = !filterTable || String(o.table_number) === String(filterTable);
+      return matchSearch && matchStatus && matchPayment && matchStaff && matchTable;
+    });
+  }, [reportOrders, searchQuery, filterStatus, filterPayment, filterStaff, filterTable]);
+
+  const totalFilteredPages = Math.max(1, Math.ceil(filteredOrders.length / ordersPageSize));
+
+  const paginatedOrders = useMemo(() => {
+    const start = (ordersPage - 1) * ordersPageSize;
+    return filteredOrders.slice(start, start + ordersPageSize);
+  }, [filteredOrders, ordersPage, ordersPageSize]);
+
+  const filteredTotal = useMemo(() =>
+    filteredOrders.reduce((s, o) => s + (Number(o.total) || 0), 0),
+  [filteredOrders]);
+
+  const statusOptions = useMemo(() => [...new Set((reportOrders || []).map(o => o.status).filter(Boolean))], [reportOrders]);
+  const paymentOptions = useMemo(() => [...new Set((reportOrders || []).map(o => normalizePayment(o.payment_method)).filter(Boolean))], [reportOrders]);
+  const staffOptions = useMemo(() => [...new Set((reportOrders || []).map(o => o.waiter_name).filter(Boolean))], [reportOrders]);
+  const tableOptions = useMemo(() => [...new Set((reportOrders || []).map(o => String(o.table_number)).filter(Boolean))], [reportOrders]);
+
+  useEffect(() => { setOrdersPage(1); }, [searchQuery, filterStatus, filterPayment, filterStaff, filterTable, ordersPageSize]);
+
+  const priorPeriodLabel = useMemo(() => {
+    try {
+      const start = new Date(dateRange.start_date);
+      const diffDays = Math.max(1, Math.round((new Date(dateRange.end_date) - start) / 86400000) + 1);
+      const priorEnd = new Date(start); priorEnd.setDate(priorEnd.getDate() - 1);
+      const priorStart = new Date(priorEnd); priorStart.setDate(priorStart.getDate() - diffDays + 1);
+      const fmt = d => d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+      return `${fmt(priorStart)} – ${fmt(priorEnd)}`;
+    } catch { return ''; }
+  }, [dateRange]);
+
+  const currentRangeLabel = useMemo(() => {
+    try {
+      const fmt = s => new Date(s).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+      return `${fmt(dateRange.start_date)} – ${fmt(dateRange.end_date)}`;
+    } catch { return ''; }
+  }, [dateRange]);
+
   if (initialLoading) {
     return (
       <Layout user={user}>
-        <div className="space-y-6">
-          <TrialBanner user={user} />
-          
-          {/* Header Skeleton */}
-          <div>
-            <div className="h-10 bg-gray-200 rounded animate-pulse w-80 mb-2"></div>
-            <div className="h-5 bg-gray-200 rounded animate-pulse w-96"></div>
+        <div className="p-4 md:p-6 space-y-4 animate-pulse">
+          <div className="flex justify-between items-center bg-white p-4 rounded-xl">
+            <div className="h-8 bg-gray-200 rounded w-64" />
+            <div className="flex gap-2"><div className="h-8 bg-gray-200 rounded w-32" /><div className="h-8 bg-gray-200 rounded w-24" /></div>
           </div>
-
-          {/* Tabs Skeleton */}
-          <div className="flex gap-2 mb-6">
-            {[...Array(6)].map((_, i) => (
-              <div key={i} className="h-10 bg-gray-200 rounded animate-pulse w-24"></div>
-            ))}
+          <div className="h-10 bg-gray-200 rounded w-full" />
+          <div className="h-12 bg-gray-200 rounded w-full" />
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {Array(8).fill(0).map((_, i) => <div key={i} className="h-24 bg-gray-200 rounded-xl" />)}
           </div>
-
-          {/* Cards Skeleton */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {[...Array(3)].map((_, i) => (
-              <div key={i} className="border-0 shadow-lg rounded-lg p-6 bg-white">
-                <div className="h-4 bg-gray-200 rounded animate-pulse w-24 mb-4"></div>
-                <div className="h-12 bg-gray-200 rounded animate-pulse w-32"></div>
-              </div>
-            ))}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <div className="h-72 bg-gray-200 rounded-xl lg:col-span-2" />
+            <div className="h-72 bg-gray-200 rounded-xl" />
           </div>
-
-          {/* Large Card Skeleton */}
-          <div className="border-0 shadow-lg rounded-lg p-6 bg-white">
-            <div className="h-6 bg-gray-200 rounded animate-pulse w-48 mb-4"></div>
-            <div className="space-y-3">
-              <div className="h-4 bg-gray-200 rounded animate-pulse"></div>
-              <div className="h-4 bg-gray-200 rounded animate-pulse w-3/4"></div>
-              <div className="h-4 bg-gray-200 rounded animate-pulse w-1/2"></div>
-            </div>
-          </div>
+          <div className="h-64 bg-gray-200 rounded-xl" />
         </div>
       </Layout>
     );
@@ -1750,75 +1877,388 @@ const ReportsPage = ({ user }) => {
 
   return (
     <Layout user={user}>
-      <div className="reports-page space-y-6" data-testid="reports-page">
+      <div className="p-3 md:p-6 space-y-4 bg-gray-50 min-h-screen">
         <TrialBanner user={user} />
-        <div className="reports-heading-row">
-          <div className="reports-heading-copy">
-            <div className="reports-heading-icon" aria-hidden="true"><TrendingUp className="h-5 w-5" /></div>
+
+        {/* ── PAGE HEADER ── */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white p-4 rounded-xl shadow-sm">
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-indigo-100 rounded-lg">
+              <BarChart2 className="h-6 w-6 text-indigo-600" />
+            </div>
             <div>
-              <h1
-                className="text-2xl sm:text-4xl font-bold"
-                style={{ fontFamily: "Space Grotesk, sans-serif" }}
-              >
-                Reports & Analytics
-              </h1>
-              <p className="text-gray-600 mt-1 sm:mt-2 text-sm sm:text-base">
-                Understand sales, orders, customers and restaurant performance.
-              </p>
+              <h1 className="text-xl font-bold text-gray-900">Reports & Analytics</h1>
+              <p className="text-xs text-gray-500">Understand sales, orders, customers and restaurant performance.</p>
             </div>
           </div>
-          <div className="reports-heading-actions">
-            <label className="reports-timezone">Timezone <select aria-label="Timezone" defaultValue="Asia/Kolkata (IST)"><option>Asia/Kolkata (IST)</option><option>UTC</option></select></label>
-            <Button variant="outline" onClick={() => window.location.reload()}><RefreshCw className="h-4 w-4" /> Refresh</Button>
-            <Button onClick={handleExportCSV} disabled={exportLoading} className="reports-primary-action"><Download className="h-4 w-4" /> {exportLoading ? "Exporting..." : "Export"}</Button>
+          <div className="flex items-center gap-2 flex-wrap">
+            <select className="text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-300">
+              <option>Timezone: Asia/Kolkata (IST)</option>
+              <option>UTC</option>
+            </select>
+            <Button variant="outline" size="sm" onClick={() => {
+              fetchDailyReport(); fetchWeeklyReport(); fetchMonthlyReport();
+              fetchBestSelling(); fetchReportOrders(); fetchPriorPeriodOrders();
+            }} className="gap-1.5">
+              <RefreshCw className="h-4 w-4" /> Refresh
+            </Button>
+            <Button size="sm" onClick={handleExportCSV} disabled={exportLoading}
+              className="gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white">
+              <Download className="h-4 w-4" /> {exportLoading ? 'Exporting…' : 'Export'}
+            </Button>
           </div>
         </div>
 
-        <Tabs defaultValue="overview" className="space-y-4 sm:space-y-6">
-          {/* Mobile-optimized scrollable tabs */}
-          <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 pb-2">
-            <TabsList className="inline-flex w-max sm:w-full sm:grid sm:grid-cols-9 gap-1 min-w-max sm:min-w-0 bg-gray-100/80 p-1 rounded-xl">
-              <TabsTrigger value="overview" className="whitespace-nowrap px-3 py-2 text-xs sm:text-sm rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm">
-                <span className="hidden sm:inline">Overview</span>
-                <span className="sm:hidden">Overview</span>
-              </TabsTrigger>
-              <TabsTrigger value="sales" className="whitespace-nowrap px-3 py-2 text-xs sm:text-sm rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm">
-                <span className="hidden sm:inline">Sales Trends</span>
-                <span className="sm:hidden">Sales</span>
-              </TabsTrigger>
-              <TabsTrigger value="items" className="whitespace-nowrap px-3 py-2 text-xs sm:text-sm rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm">
-                <span className="hidden sm:inline">Best Sellers</span>
-                <span className="sm:hidden">Top Items</span>
-              </TabsTrigger>
-              <TabsTrigger value="stock" className="whitespace-nowrap px-3 py-2 text-xs sm:text-sm rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm">
-                <span className="hidden sm:inline">Stock Report</span>
-                <span className="sm:hidden">Stock</span>
-              </TabsTrigger>
-              <TabsTrigger value="staff" className="whitespace-nowrap px-3 py-2 text-xs sm:text-sm rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm">
-                <span className="hidden sm:inline">Staff Performance</span>
-                <span className="sm:hidden">Staff</span>
-              </TabsTrigger>
-              <TabsTrigger value="hours" className="whitespace-nowrap px-3 py-2 text-xs sm:text-sm rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm">
-                <span className="hidden sm:inline">Peak Hours</span>
-                <span className="sm:hidden">Hours</span>
-              </TabsTrigger>
-              <TabsTrigger value="customers" className="whitespace-nowrap px-3 py-2 text-xs sm:text-sm rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm">
-                <span className="hidden sm:inline">Customer Balance</span>
-                <span className="sm:hidden">Customers</span>
-              </TabsTrigger>
-              <TabsTrigger value="daybook" className="whitespace-nowrap px-3 py-2 text-xs sm:text-sm rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm">
-                <span className="hidden sm:inline">Day Book</span>
-                <span className="sm:hidden">Day Book</span>
-              </TabsTrigger>
-              <TabsTrigger value="export" className="whitespace-nowrap px-3 py-2 text-xs sm:text-sm rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm">
-                <span className="hidden sm:inline">Export</span>
-                <span className="sm:hidden">Export</span>
-              </TabsTrigger>
+        {/* ── TABS ── */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+          <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+            <TabsList className="flex w-full overflow-x-auto whitespace-nowrap h-auto bg-gray-100 rounded-none p-1 gap-0.5 border-b border-gray-200">
+              {[
+                { value: 'overview', label: 'Overview' },
+                { value: 'sales', label: 'Sales Trends' },
+                { value: 'items', label: 'Best Sellers' },
+                { value: 'stock', label: 'Stock Report' },
+                { value: 'staff', label: 'Staff Performance' },
+                { value: 'hours', label: 'Peak Hours' },
+                { value: 'customers', label: 'Customer Balance' },
+                { value: 'daybook', label: 'Day Book' },
+                { value: 'export', label: 'Export' },
+              ].map(t => (
+                <TabsTrigger key={t.value} value={t.value}
+                  className="flex-shrink-0 px-3 py-2 text-xs sm:text-sm rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm whitespace-nowrap">
+                  {t.label}
+                </TabsTrigger>
+              ))}
             </TabsList>
           </div>
 
-          {/* Overview Tab */}
-          <TabsContent value="overview" className="space-y-4 sm:space-y-6">
+          {/* ══ OVERVIEW TAB ══ */}
+          <TabsContent value="overview" className="space-y-4">
+
+            {/* Date Preset Bar */}
+            <Card className="shadow-sm">
+              <CardContent className="p-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  {[
+                    { label: 'Today', key: 'today' },
+                    { label: 'Yesterday', key: 'yesterday' },
+                    { label: '7 Days', key: 'week' },
+                    { label: '15 Days', key: 'fifteenDays' },
+                    { label: '30 Days', key: 'month' },
+                  ].map(({ label, key }) => (
+                    <button key={key} onClick={() => applyPreset(key)}
+                      className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                        activePreset === key ? 'bg-indigo-600 text-white shadow-sm' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}>
+                      {label}
+                    </button>
+                  ))}
+                  <button onClick={() => setActivePreset('custom')}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                      activePreset === 'custom' ? 'bg-indigo-600 text-white shadow-sm' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}>
+                    Custom Range
+                  </button>
+                  {activePreset === 'custom' && (
+                    <div className="flex items-center gap-2 ml-1">
+                      <input type="date" value={dateRange.start_date}
+                        onChange={e => setDateRange(r => ({ ...r, start_date: e.target.value }))}
+                        className="text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-300" />
+                      <span className="text-gray-400 text-sm">–</span>
+                      <input type="date" value={dateRange.end_date}
+                        onChange={e => setDateRange(r => ({ ...r, end_date: e.target.value }))}
+                        className="text-sm border border-gray-200 rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-indigo-300" />
+                    </div>
+                  )}
+                  <span className="text-sm text-gray-600 font-medium ml-1">→ {currentRangeLabel}</span>
+                  <span className="text-xs text-gray-400 ml-auto hidden sm:block">Compared to: {priorPeriodLabel}</span>
+                </div>
+                <p className="sm:hidden mt-1 text-xs text-gray-400">Compared to: {priorPeriodLabel}</p>
+              </CardContent>
+            </Card>
+
+            {/* KPI Cards — 8 cards */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {[
+                { label: 'Total Sales', value: `₹${kpiCurrent.totalSales.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, Icon: TrendingUp, bg: 'bg-indigo-100', ic: 'text-indigo-600', trend: trendPct(kpiCurrent.totalSales, kpiPrior.totalSales) },
+                { label: 'Total Orders', value: kpiCurrent.totalOrders.toLocaleString('en-IN'), Icon: ShoppingCart, bg: 'bg-blue-100', ic: 'text-blue-600', trend: trendPct(kpiCurrent.totalOrders, kpiPrior.totalOrders) },
+                { label: 'Average Order Value', value: `₹${kpiCurrent.avgOrderValue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, Icon: BarChart2, bg: 'bg-green-100', ic: 'text-green-600', trend: trendPct(kpiCurrent.avgOrderValue, kpiPrior.avgOrderValue) },
+                { label: 'Items Sold', value: kpiCurrent.itemsSold.toLocaleString('en-IN'), Icon: Package, bg: 'bg-orange-100', ic: 'text-orange-600', trend: trendPct(kpiCurrent.itemsSold, kpiPrior.itemsSold) },
+                { label: 'Customers', value: kpiCurrent.customers.toLocaleString('en-IN'), Icon: Users, bg: 'bg-teal-100', ic: 'text-teal-600', trend: trendPct(kpiCurrent.customers, kpiPrior.customers) },
+                { label: 'Discounts', value: `₹${kpiCurrent.discounts.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, Icon: Tag, bg: 'bg-pink-100', ic: 'text-pink-600', trend: trendPct(kpiCurrent.discounts, kpiPrior.discounts) },
+                { label: 'Taxes', value: `₹${kpiCurrent.taxes.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, Icon: Receipt, bg: 'bg-yellow-100', ic: 'text-yellow-600', trend: trendPct(kpiCurrent.taxes, kpiPrior.taxes) },
+                { label: 'Net Revenue', value: `₹${kpiCurrent.netRevenue.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, Icon: DollarSign, bg: 'bg-emerald-100', ic: 'text-emerald-600', trend: trendPct(kpiCurrent.netRevenue, kpiPrior.netRevenue) },
+              ].map(({ label, value, Icon, bg, ic, trend }) => {
+                const isUp = trend >= 0;
+                const TIcon = isUp ? ArrowUp : ArrowDown;
+                return (
+                  <Card key={label} className="shadow-sm hover:shadow-md transition-shadow">
+                    <CardContent className="p-4">
+                      <div className="flex items-start justify-between mb-2">
+                        <div className={`p-2 rounded-lg ${bg}`}><Icon className={`h-4 w-4 ${ic}`} /></div>
+                      </div>
+                      <p className="text-xs text-gray-500 mb-0.5">{label}</p>
+                      <p className="text-base font-bold text-gray-900 truncate">{value}</p>
+                      <div className={`flex items-center gap-0.5 mt-1 text-xs font-medium ${isUp ? 'text-green-600' : 'text-red-500'}`}>
+                        <TIcon className="h-3 w-3" />
+                        <span>{Math.abs(trend).toFixed(1)}% vs prev. period</span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+
+            {/* Charts Row */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              {/* Sales Trend Chart — 2 cols */}
+              <Card className="shadow-sm lg:col-span-2">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-semibold text-gray-800">Sales Trend (by Day)</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {salesTrendData.length === 0 ? (
+                    <div className="h-[260px] flex items-center justify-center">
+                      <p className="text-sm text-gray-400">No data for this period</p>
+                    </div>
+                  ) : (
+                    <ResponsiveContainer width="100%" height={260}>
+                      <ComposedChart data={salesTrendData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                        <XAxis dataKey="date" tick={{ fontSize: 10, fill: '#9ca3af' }}
+                          tickFormatter={d => { try { const dt = new Date(d); return `${dt.getDate()} ${dt.toLocaleString('en', { month: 'short' })}`; } catch { return d; } }} />
+                        <YAxis yAxisId="left" tick={{ fontSize: 10, fill: '#9ca3af' }}
+                          tickFormatter={v => `₹${v >= 1000 ? (v / 1000).toFixed(0) + 'k' : v}`} />
+                        <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10, fill: '#9ca3af' }} />
+                        <RechartsTooltip formatter={(value, name) =>
+                          name === 'Sales (₹)' ? [`₹${Number(value).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, name] : [value, name]} />
+                        <Legend wrapperStyle={{ fontSize: '11px' }} />
+                        <Bar yAxisId="right" dataKey="orders" name="Orders" fill="#3b82f6" opacity={0.6} radius={[2, 2, 0, 0]} />
+                        <Line yAxisId="left" type="monotone" dataKey="sales" name="Sales (₹)" stroke="#8b5cf6" strokeWidth={2} dot={false} />
+                      </ComposedChart>
+                    </ResponsiveContainer>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Payment Breakdown Donut */}
+              <Card className="shadow-sm">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-semibold text-gray-800">Payment Breakdown</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {paymentBreakdownData.length === 0 ? (
+                    <div className="h-[260px] flex items-center justify-center">
+                      <p className="text-sm text-gray-400">No payment data</p>
+                    </div>
+                  ) : (
+                    <div className="relative">
+                      <ResponsiveContainer width="100%" height={220}>
+                        <PieChart>
+                          <Pie data={paymentBreakdownData} cx="50%" cy="45%"
+                            innerRadius={55} outerRadius={80} dataKey="value" paddingAngle={2}>
+                            {paymentBreakdownData.map((entry) => (
+                              <Cell key={entry.name} fill={PAYMENT_COLORS[entry.name] || '#6b7280'} />
+                            ))}
+                          </Pie>
+                          <RechartsTooltip formatter={(v, n) => [`₹${Number(v).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, n]} />
+                          <Legend iconSize={8} wrapperStyle={{ fontSize: '11px' }} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                      <div className="absolute pointer-events-none" style={{ top: '32%', left: '50%', transform: 'translate(-50%,-50%)', textAlign: 'center' }}>
+                        <p className="text-xs text-gray-500 leading-tight">Total</p>
+                        <p className="text-xs font-bold text-gray-800">₹{kpiCurrent.totalSales.toLocaleString('en-IN', { minimumFractionDigits: 2 })}</p>
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Top Selling Items */}
+            <Card className="shadow-sm">
+              <CardHeader className="pb-2 flex flex-row items-center justify-between">
+                <CardTitle className="text-sm font-semibold text-gray-800">Top Selling Items</CardTitle>
+                <button onClick={() => setActiveTab('items')}
+                  className="text-xs text-indigo-600 hover:text-indigo-800 font-medium">
+                  View All Best Sellers →
+                </button>
+              </CardHeader>
+              <CardContent>
+                {!bestSelling || bestSelling.length === 0 ? (
+                  <p className="text-sm text-gray-400 text-center py-6">No data available</p>
+                ) : (
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left py-2 pr-3 text-xs text-gray-500 font-medium">#</th>
+                        <th className="text-left py-2 pr-3 text-xs text-gray-500 font-medium">Item</th>
+                        <th className="text-right py-2 pr-3 text-xs text-gray-500 font-medium">Qty Sold</th>
+                        <th className="text-right py-2 text-xs text-gray-500 font-medium">Revenue</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {bestSelling.slice(0, 7).map((item, idx) => (
+                        <tr key={idx} className="border-b last:border-0 hover:bg-gray-50">
+                          <td className="py-2 pr-3 text-gray-400 text-sm">{idx + 1}</td>
+                          <td className="py-2 pr-3 font-medium text-gray-800">{item.name || item.item_name || '–'}</td>
+                          <td className="py-2 pr-3 text-right text-gray-700">{item.total_quantity || item.quantity_sold || 0}</td>
+                          <td className="py-2 text-right font-medium text-gray-800">₹{Number(item.total_revenue || item.revenue || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Orders Section */}
+            <Card className="shadow-sm">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-semibold text-gray-800">Bills / Orders in Selected Range</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {/* Toolbar */}
+                <div className="flex flex-wrap gap-2 items-center">
+                  <div className="relative min-w-[180px] flex-1">
+                    <input type="text" placeholder="Search bill no., customer, staff..."
+                      value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+                      className="w-full text-sm border border-gray-200 rounded-lg pl-8 pr-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-300 bg-white" />
+                    <svg className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                  </div>
+                  <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
+                    className="text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-300">
+                    <option value="">All Status</option>
+                    {statusOptions.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                  <select value={filterPayment} onChange={e => setFilterPayment(e.target.value)}
+                    className="text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-300">
+                    <option value="">All Payment Methods</option>
+                    {paymentOptions.map(p => <option key={p} value={p}>{p}</option>)}
+                  </select>
+                  <select value={filterStaff} onChange={e => setFilterStaff(e.target.value)}
+                    className="text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-300">
+                    <option value="">All Staff</option>
+                    {staffOptions.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                  <select value={filterTable} onChange={e => setFilterTable(e.target.value)}
+                    className="text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-300">
+                    <option value="">All Tables</option>
+                    {tableOptions.map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                  <div className="flex gap-2 ml-auto">
+                    <Button variant="outline" size="sm" onClick={handleExportCSV} title="Download CSV">
+                      <Download className="h-4 w-4" />
+                    </Button>
+                    <Button size="sm" onClick={handleExportCSV}
+                      className="gap-1.5 bg-indigo-600 hover:bg-indigo-700 text-white">
+                      <Download className="h-4 w-4" /> Export
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Table */}
+                <div className="overflow-x-auto rounded-lg border border-gray-200">
+                  <table className="w-full text-xs whitespace-nowrap">
+                    <thead className="bg-gray-50 border-b border-gray-200">
+                      <tr>
+                        {['Bill #','Date & Time','Order #','Table','Customer','Staff','Items','Subtotal','Discount','Tax','Charges','Total','Paid','Balance','Payment','Status','Actions'].map(col => (
+                          <th key={col} className="text-left px-3 py-2.5 font-semibold text-gray-600">{col}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                      {reportOrdersLoading ? (
+                        Array(5).fill(0).map((_, i) => (
+                          <tr key={i} className="animate-pulse">
+                            {Array(17).fill(0).map((_, j) => (
+                              <td key={j} className="px-3 py-2.5"><div className="h-3 bg-gray-200 rounded w-14" /></td>
+                            ))}
+                          </tr>
+                        ))
+                      ) : paginatedOrders.length === 0 ? (
+                        <tr>
+                          <td colSpan={17} className="px-3 py-10 text-center text-sm text-gray-400">
+                            No orders found for the selected date range
+                          </td>
+                        </tr>
+                      ) : (
+                        paginatedOrders.map((order, i) => (
+                          <tr key={order.id || i} className="hover:bg-gray-50 transition-colors">
+                            <td className="px-3 py-2.5 font-semibold text-indigo-600">{order.bill_number || `#${order.id}`}</td>
+                            <td className="px-3 py-2.5 text-gray-600">
+                              {order.created_at ? new Date(order.created_at).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '–'}
+                            </td>
+                            <td className="px-3 py-2.5 text-gray-600">{order.order_number || order.id}</td>
+                            <td className="px-3 py-2.5 text-gray-600">{order.table_number ? `T-${order.table_number}` : '–'}</td>
+                            <td className="px-3 py-2.5 text-gray-700">{order.customer_name || 'Walk-in Customer'}</td>
+                            <td className="px-3 py-2.5 text-gray-600">{order.waiter_name || '–'}</td>
+                            <td className="px-3 py-2.5 text-gray-600">{(order.items || []).length}</td>
+                            <td className="px-3 py-2.5 text-gray-700">₹{Number(order.subtotal || 0).toFixed(2)}</td>
+                            <td className="px-3 py-2.5 text-gray-600">₹{Number(order.discount || 0).toFixed(2)}</td>
+                            <td className="px-3 py-2.5 text-gray-600">₹{Number(order.tax || 0).toFixed(2)}</td>
+                            <td className="px-3 py-2.5 text-gray-600">₹{Number(order.charges || 0).toFixed(2)}</td>
+                            <td className="px-3 py-2.5 font-bold text-gray-900">₹{Number(order.total || 0).toFixed(2)}</td>
+                            <td className="px-3 py-2.5 text-gray-700">₹{Number(order.paid_amount != null ? order.paid_amount : (order.total || 0)).toFixed(2)}</td>
+                            <td className="px-3 py-2.5 text-gray-600">₹{Number(order.balance || 0).toFixed(2)}</td>
+                            <td className="px-3 py-2.5 text-gray-600">{normalizePayment(order.payment_method)}</td>
+                            <td className="px-3 py-2.5">
+                              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(order.status)}`}>
+                                {order.status || '–'}
+                              </span>
+                            </td>
+                            <td className="px-3 py-2.5">
+                              <div className="flex items-center gap-1">
+                                <button onClick={() => setViewOrderModal({ open: true, order })}
+                                  className="p-1 rounded hover:bg-gray-100 text-gray-500 hover:text-indigo-600 transition-colors">
+                                  <Eye className="h-3.5 w-3.5" />
+                                </button>
+                                <button onClick={() => setEditOrderModal({ open: true, order })}
+                                  className="p-1 rounded hover:bg-gray-100 text-gray-500 hover:text-blue-600 transition-colors">
+                                  <Pencil className="h-3.5 w-3.5" />
+                                </button>
+                                <button onClick={() => setDeleteConfirmModal({ open: true, order })}
+                                  className="p-1 rounded hover:bg-gray-100 text-gray-500 hover:text-red-600 transition-colors">
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Pagination */}
+                <div className="flex flex-wrap items-center justify-between gap-2 text-sm pt-1">
+                  <span className="text-gray-500 text-xs">
+                    Showing {filteredOrders.length === 0 ? 0 : (ordersPage - 1) * ordersPageSize + 1} to {Math.min(ordersPage * ordersPageSize, filteredOrders.length)} of {filteredOrders.length} results
+                  </span>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs text-gray-500">Rows per page:</span>
+                    <select value={ordersPageSize} onChange={e => { setOrdersPageSize(Number(e.target.value)); setOrdersPage(1); }}
+                      className="text-sm border border-gray-200 rounded px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-indigo-300">
+                      {[10, 25, 50, 100].map(n => <option key={n} value={n}>{n}</option>)}
+                    </select>
+                    <button onClick={() => setOrdersPage(p => Math.max(1, p - 1))} disabled={ordersPage <= 1}
+                      className="px-2.5 py-1 border border-gray-200 rounded text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">‹</button>
+                    <span className="text-xs text-gray-600">Page {totalFilteredPages === 0 ? 0 : ordersPage} of {totalFilteredPages}</span>
+                    <button onClick={() => setOrdersPage(p => Math.min(totalFilteredPages, p + 1))} disabled={ordersPage >= totalFilteredPages}
+                      className="px-2.5 py-1 border border-gray-200 rounded text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">›</button>
+                  </div>
+                  <span className="font-semibold text-gray-800 text-sm">
+                    Total (Filtered): ₹{filteredTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* old-content-removed */}
+          <TabsContent value="overview-removed" className="hidden">
             {dailyReport && (
               <>
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-6">
