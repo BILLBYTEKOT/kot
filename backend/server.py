@@ -9565,7 +9565,7 @@ async def daily_report(current_user: dict = Depends(get_current_user)):
                 print(f"💾 Cache hit for daily_report: {cache_key}")
                 return _cache[cache_key]
     
-    # Use IST (Indian Standard Time) for "today" calculation
+    # ✅ BUGFIX: Use IST (Indian Standard Time) for "today" calculation
     # IST is UTC+5:30
     from datetime import timedelta
     IST = timezone(timedelta(hours=5, minutes=30))
@@ -9574,8 +9574,15 @@ async def daily_report(current_user: dict = Depends(get_current_user)):
     now_ist = datetime.now(IST)
     today_ist = now_ist.replace(hour=0, minute=0, second=0, microsecond=0)
     
-    # Convert to UTC for database query
+    # Convert to UTC for database query (MongoDB stores UTC strings)
     today_utc = today_ist.astimezone(timezone.utc)
+    
+    # ✅ CRITICAL BUGFIX: Use string comparison that works with MongoDB ISO strings
+    # MongoDB stores dates like "2024-08-31T09:00:00+00:00" or "2024-08-31T09:00:00.123456+00:00"
+    # We need to strip the timezone and microseconds to compare just the date portion
+    today_utc_str = today_utc.strftime("%Y-%m-%dT00:00:00")
+    
+    print(f"🔍 DEBUG: Querying orders >= {today_utc_str} for org {user_org_id}")
     
     # Optimized: Use database query instead of filtering in Python
     # Include all orders from today that have been paid (not just completed)
@@ -9587,7 +9594,7 @@ async def daily_report(current_user: dict = Depends(get_current_user)):
             {"is_credit": False, "total": {"$gt": 0}}  # Non-credit orders
         ],
         "organization_id": user_org_id,
-        "created_at": {"$gte": today_utc.isoformat()}
+        "created_at": {"$gte": today_utc_str}
     }, {"_id": 0}).sort("created_at", -1).to_list(1000)
 
     # Use aggregation for better performance - include paid orders
@@ -9596,7 +9603,7 @@ async def daily_report(current_user: dict = Depends(get_current_user)):
             "$match": {
                 "status": {"$in": ["completed", "paid"]},
                 "organization_id": user_org_id,
-                "created_at": {"$gte": today_utc.isoformat()}
+                "created_at": {"$gte": today_utc_str}
             }
         },
         {
@@ -9617,6 +9624,8 @@ async def daily_report(current_user: dict = Depends(get_current_user)):
     else:
         total_orders = 0
         total_sales = 0
+    
+    print(f"✅ Daily report: {total_orders} orders, ₹{total_sales} (IST date: {today_ist.date()})")
 
     result = {
         "date": today_ist.isoformat(),

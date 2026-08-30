@@ -46,13 +46,15 @@ This feature revamps the existing Reports & Analytics page (`frontend/src/pages/
 
 1. THE ReportsPage SHALL render a header row containing: the page title "Reports & Analytics", a subtitle, a timezone selector, a Refresh button, and an Export button.
 2. THE ReportsPage SHALL use Indian Standard Time (IST, UTC+5:30) as the default timezone for all date calculations and display.
-3. THE `formatLocalDate` utility function SHALL convert dates to IST timezone before formatting them as YYYY-MM-DD strings, ensuring consistency regardless of the user's browser timezone.
+3. THE `formatLocalDate` utility function SHALL be replaced with `formatISTDate` that converts dates to IST timezone before formatting them as YYYY-MM-DD strings, ensuring consistency regardless of the user's browser timezone.
 4. WHEN the "Today" preset is selected, THE ReportsPage SHALL calculate today's date in IST (not browser local time), so sales from the current IST day appear under "Today" and not shifted to yesterday.
 5. WHEN date presets (Yesterday, 7 Days, 15 Days, 30 Days) are calculated, THE ReportsPage SHALL use IST as the reference timezone for all date arithmetic.
-6. THE Timezone Selector SHALL default to "Asia/Kolkata" (IST) and allow users to change the display timezone if needed (future enhancement).
-7. WHEN the Refresh button is clicked, THE ReportsPage SHALL reload all report data by re-invoking the existing data-fetch functions.
-8. WHEN the Export button is clicked, THE ReportsPage SHALL trigger the existing CSV export function (`handleExportCSV`).
-9. WHEN the viewport width is less than 640px, THE Header Row SHALL stack the title block above the action controls and both SHALL remain fully visible without horizontal overflow.
+6. THE Frontend SHALL send date strings to the backend `/reports/export` endpoint in ISO format compatible with MongoDB's date storage (either "YYYY-MM-DD" or full ISO timestamp with timezone).
+7. THE Implementation SHALL verify backend date comparison logic works correctly with the date format sent by the frontend, and fix backend bugs if dates are not matching correctly.
+8. THE Timezone Selector SHALL default to "Asia/Kolkata" (IST) and allow users to change the display timezone if needed (future enhancement).
+9. WHEN the Refresh button is clicked, THE ReportsPage SHALL reload all report data by re-invoking the existing data-fetch functions.
+10. WHEN the Export button is clicked, THE ReportsPage SHALL trigger the existing CSV export function (`handleExportCSV`).
+11. WHEN the viewport width is less than 640px, THE Header Row SHALL stack the title block above the action controls and both SHALL remain fully visible without horizontal overflow.
 
 ---
 

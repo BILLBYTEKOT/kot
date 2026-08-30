@@ -93,12 +93,15 @@ This implementation plan revamps the Reports & Analytics page (`frontend/src/pag
   - Ensure all tests pass, ask the user if questions arise.
 
 - [ ] 5. Revamp the page header section and implement IST timezone handling
-  - [ ] 5.1 Implement IST timezone utility functions
+  - [ ] 5.1 Implement IST timezone utility functions and verify backend
+    - **CRITICAL**: First, verify the backend `/reports/daily` endpoint is working correctly by checking MongoDB date storage format
     - Create `getISTDate()` utility function that returns current date/time in IST (UTC+5:30) timezone
     - Create `formatISTDate(date)` utility function that converts any date to IST and formats as YYYY-MM-DD
     - Replace existing `formatLocalDate()` with `formatISTDate()` throughout the component
     - Update all date preset calculations (today, yesterday, 7 days, etc.) to use IST as reference timezone
+    - Test with backend to ensure dates sent match MongoDB date format expectations
     - _Requirements: 2.2, 2.3, 2.4, 2.5_
+    - _Note: If backend dates are stored with timezone info (e.g., "2024-08-31T14:30:00+05:30"), ensure frontend sends dates in compatible format_
   
   - [ ] 5.2 Replace existing header JSX
     - Create new header row with: BarChart3 icon, "Reports & Analytics" title (text-3xl font-bold), subtitle "Track sales, inventory, and staff performance"
