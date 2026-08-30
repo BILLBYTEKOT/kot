@@ -1752,16 +1752,26 @@ const ReportsPage = ({ user }) => {
     <Layout user={user}>
       <div className="reports-page space-y-6" data-testid="reports-page">
         <TrialBanner user={user} />
-        <div>
-          <h1
-            className="text-2xl sm:text-4xl font-bold"
-            style={{ fontFamily: "Space Grotesk, sans-serif" }}
-          >
-            Reports & Analytics
-          </h1>
-          <p className="text-gray-600 mt-1 sm:mt-2 text-sm sm:text-base">
-            Comprehensive business insights
-          </p>
+        <div className="reports-heading-row">
+          <div className="reports-heading-copy">
+            <div className="reports-heading-icon" aria-hidden="true"><TrendingUp className="h-5 w-5" /></div>
+            <div>
+              <h1
+                className="text-2xl sm:text-4xl font-bold"
+                style={{ fontFamily: "Space Grotesk, sans-serif" }}
+              >
+                Reports & Analytics
+              </h1>
+              <p className="text-gray-600 mt-1 sm:mt-2 text-sm sm:text-base">
+                Understand sales, orders, customers and restaurant performance.
+              </p>
+            </div>
+          </div>
+          <div className="reports-heading-actions">
+            <label className="reports-timezone">Timezone <select aria-label="Timezone" defaultValue="Asia/Kolkata (IST)"><option>Asia/Kolkata (IST)</option><option>UTC</option></select></label>
+            <Button variant="outline" onClick={() => window.location.reload()}><RefreshCw className="h-4 w-4" /> Refresh</Button>
+            <Button onClick={handleExportCSV} disabled={exportLoading} className="reports-primary-action"><Download className="h-4 w-4" /> {exportLoading ? "Exporting..." : "Export"}</Button>
+          </div>
         </div>
 
         <Tabs defaultValue="overview" className="space-y-4 sm:space-y-6">
@@ -1810,6 +1820,7 @@ const ReportsPage = ({ user }) => {
           {/* Overview Tab */}
           <TabsContent value="overview" className="space-y-4 sm:space-y-6">
             {dailyReport && (
+              <>
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 sm:gap-6">
                 <Card
                   className="card-hover border-0 shadow-lg"
@@ -1864,6 +1875,23 @@ const ReportsPage = ({ user }) => {
                   </CardContent>
                 </Card>
               </div>
+              <div className="reports-kpi-grid" aria-label="Selected range metrics">
+                {[
+                  ["Customers", dailyReport?.total_customers ?? dailyReport?.customers ?? 0, "violet", false],
+                  ["Discounts", dailyReport?.total_discounts ?? dailyReport?.discounts ?? 0, "red", true],
+                  ["Taxes", dailyReport?.total_tax ?? dailyReport?.taxes ?? 0, "orange", true],
+                  ["Net Revenue", dailyReport?.net_revenue ?? dailyReport?.total_sales ?? 0, "green", true],
+                ].map(([label, value, tone, currency]) => (
+                  <Card key={label} className={`reports-kpi-card reports-kpi-${tone}`}>
+                    <CardContent className="p-4 sm:p-5">
+                      <p className="text-xs font-medium text-slate-500">{label}</p>
+                      <p className="mt-2 text-xl font-bold text-slate-900 truncate">{currency ? "₹" : ""}{typeof value === "number" ? value.toLocaleString("en-IN", { maximumFractionDigits: 2 }) : value}</p>
+                      <p className="mt-1 text-xs text-emerald-600">Selected range</p>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+              </>
             )}
 
             {forecast && (
