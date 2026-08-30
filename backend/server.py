@@ -9594,12 +9594,7 @@ async def daily_report(current_user: dict = Depends(get_current_user)):
     pipeline = [
         {
             "$match": {
-                "$or": [
-                    {"status": "completed"},
-                    {"status": "paid"},
-                    {"payment_received": {"$gt": 0}},
-                    {"is_credit": False, "total": {"$gt": 0}}
-                ],
+                "status": {"$in": ["completed", "paid"]},
                 "organization_id": user_org_id,
                 "created_at": {"$gte": today_utc.isoformat()}
             }

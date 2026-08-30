@@ -20,7 +20,7 @@ import {
   TabsTrigger,
 } from "../components/ui/tabs";
 import { toast } from "sonner";
-import { 
+import {
   FileText, 
   Download, 
   Sparkles, 
@@ -43,6 +43,13 @@ import {
   Eye,
   X
 } from "lucide-react";
+
+const formatLocalDate = (date = new Date()) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
 
 const ReportsPage = ({ user }) => {
   const [dailyReport, setDailyReport] = useState(null);
@@ -73,8 +80,8 @@ const ReportsPage = ({ user }) => {
   const [stockMovements, setStockMovements] = useState([]);
   
   const [dateRange, setDateRange] = useState({
-    start_date: new Date().toISOString().split("T")[0], // Today's date
-    end_date: new Date().toISOString().split("T")[0],   // Today's date
+    start_date: formatLocalDate(), // Today's date
+    end_date: formatLocalDate(),   // Today's date
   });
   const [loading, setLoading] = useState(false);
   const [exportLoading, setExportLoading] = useState(false);
@@ -84,7 +91,7 @@ const ReportsPage = ({ user }) => {
   // Quick date presets
   const datePresets = useMemo(() => ({
     today: () => {
-      const today = new Date().toISOString().split("T")[0];
+      const today = formatLocalDate();
       return { start_date: today, end_date: today };
     },
     yesterday: () => {
@@ -1746,7 +1753,7 @@ const ReportsPage = ({ user }) => {
 
   return (
     <Layout user={user}>
-      <div className="space-y-6" data-testid="reports-page">
+      <div className="reports-page space-y-6" data-testid="reports-page">
         <TrialBanner user={user} />
         <div>
           <h1
