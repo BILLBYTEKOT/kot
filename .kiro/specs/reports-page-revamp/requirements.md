@@ -9,11 +9,14 @@ This feature revamps the existing Reports & Analytics page (`frontend/src/pages/
 - **ReportsPage**: The React component at `frontend/src/pages/ReportsPage.js` that owns all reporting UI.
 - **Overview Tab**: The first tab inside the Reports page, housing the date-preset bar, KPI cards, charts, top-items table, and orders table.
 - **Date Preset Bar**: The row of preset buttons (Today, Yesterday, 7 Days, 15 Days, 30 Days) and a custom date-range picker that sets `dateRange` state and drives KPI metrics.
+- **IST (Indian Standard Time)**: UTC+5:30 timezone used as the default for all date calculations in the Reports page to ensure consistency. Today's date is calculated in IST, not browser local time.
 - **KPI Card**: A metric summary card showing a label, formatted value, trend arrow, and trend percentage vs. the prior period.
 - **Sales Trend Chart**: A dual-axis Recharts `ComposedChart` (line + bar or two lines) with Sales (₹) on the left Y-axis and Orders count on the right Y-axis, plotted by day.
 - **Payment Breakdown Chart**: A Recharts `PieChart` rendered as a donut, showing proportions of Cash / UPI / Card / Online / Other payment methods with a legend and centre total.
 - **Top Selling Items Table**: An inline table showing rank, item name, quantity sold, and revenue for the top items in the selected range, with a "View All Best Sellers" button.
 - **Orders Table**: The full data table of bills/orders in the selected date range, with search, filter dropdowns, row actions, and pagination.
+- **Invoice #**: A human-readable identifier for customer-facing invoices, displayed as `bill_number` (e.g., "INV-0001234"), `order_number` (e.g., "ORD-0001234"), or formatted date-based sequence (e.g., "241222-0042" for the 42nd order on Dec 22, 2024). This is the primary identifier for tracking bills.
+- **Order ID**: A shortened technical identifier (first 8 characters of the UUID in uppercase, e.g., "A3B4C5D6") for internal tracking and support/debugging purposes.
 - **Trend %**: Percentage change of a metric vs. the prior period of equal length (e.g., comparing "last 7 days" to the 7 days before that).
 - **Payment Breakdown Data**: Derived client-side from `reportOrders` by grouping on the `payment_method` field and summing totals.
 - **Items Sold**: Derived client-side from `reportOrders` by summing `quantity` across all items in each order.
@@ -35,16 +38,21 @@ This feature revamps the existing Reports & Analytics page (`frontend/src/pages/
 
 ---
 
-### Requirement 2: Page Header
+### Requirement 2: Page Header and Timezone Handling
 
-**User Story:** As a restaurant manager, I want a clear header with contextual actions at the top of the Reports page, so that I can immediately identify the page, select my timezone, refresh data, and export reports without scrolling.
+**User Story:** As a restaurant manager in India, I want a clear header with contextual actions at the top of the Reports page and consistent IST timezone handling, so that I can immediately identify the page, select my timezone, refresh data, export reports without scrolling, and see today's sales accurately reflected in today's date (not yesterday due to timezone issues).
 
 #### Acceptance Criteria
 
 1. THE ReportsPage SHALL render a header row containing: the page title "Reports & Analytics", a subtitle, a timezone selector, a Refresh button, and an Export button.
-2. WHEN the Refresh button is clicked, THE ReportsPage SHALL reload all report data by re-invoking the existing data-fetch functions.
-3. WHEN the Export button is clicked, THE ReportsPage SHALL trigger the existing CSV export function (`handleExportCSV`).
-4. WHEN the viewport width is less than 640px, THE Header Row SHALL stack the title block above the action controls and both SHALL remain fully visible without horizontal overflow.
+2. THE ReportsPage SHALL use Indian Standard Time (IST, UTC+5:30) as the default timezone for all date calculations and display.
+3. THE `formatLocalDate` utility function SHALL convert dates to IST timezone before formatting them as YYYY-MM-DD strings, ensuring consistency regardless of the user's browser timezone.
+4. WHEN the "Today" preset is selected, THE ReportsPage SHALL calculate today's date in IST (not browser local time), so sales from the current IST day appear under "Today" and not shifted to yesterday.
+5. WHEN date presets (Yesterday, 7 Days, 15 Days, 30 Days) are calculated, THE ReportsPage SHALL use IST as the reference timezone for all date arithmetic.
+6. THE Timezone Selector SHALL default to "Asia/Kolkata" (IST) and allow users to change the display timezone if needed (future enhancement).
+7. WHEN the Refresh button is clicked, THE ReportsPage SHALL reload all report data by re-invoking the existing data-fetch functions.
+8. WHEN the Export button is clicked, THE ReportsPage SHALL trigger the existing CSV export function (`handleExportCSV`).
+9. WHEN the viewport width is less than 640px, THE Header Row SHALL stack the title block above the action controls and both SHALL remain fully visible without horizontal overflow.
 
 ---
 
@@ -167,28 +175,37 @@ This feature revamps the existing Reports & Analytics page (`frontend/src/pages/
 
 1. THE Orders Table Section SHALL render a filter toolbar containing: a text search input, an "All Status" dropdown, an "All Payment Methods" dropdown, an "All Staff" dropdown, and an "All Tables" dropdown.
 2. WHEN a value is selected in any filter dropdown, THE ReportsPage SHALL filter `reportOrders` in-memory (client-side) and update the displayed rows without re-fetching from the API.
-3. WHEN text is entered in the search input, THE ReportsPage SHALL filter rows where Bill #, Customer name, or Order # contains the search text (case-insensitive).
-4. THE Status Dropdown SHALL derive its options from the distinct `status` values present in `reportOrders`.
-5. THE Payment Methods Dropdown SHALL derive its options from the distinct `payment_method` values present in `reportOrders`.
-6. THE Staff Dropdown SHALL derive its options from the distinct `waiter_name` values present in `reportOrders`.
-7. THE Tables Dropdown SHALL derive its options from the distinct `table_number` values present in `reportOrders`.
-8. WHEN all filters are set to "All …", THE Orders Table SHALL display all orders in the selected date range with no filtering applied.
+3. WHEN text is entered in the search input, THE ReportsPage SHALL filter rows where Invoice # (bill_number, order_number, or formatted ID), Customer name, or Order technical ID contains the search text (case-insensitive).
+4. THE Search Input SHALL have placeholder text "Search invoice no., customer, order ID..." to guide users on searchable fields.
+5. THE Status Dropdown SHALL derive its options from the distinct `status` values present in `reportOrders`.
+6. THE Payment Methods Dropdown SHALL derive its options from the distinct `payment_method` values present in `reportOrders`.
+7. THE Staff Dropdown SHALL derive its options from the distinct `waiter_name` values present in `reportOrders`.
+8. THE Tables Dropdown SHALL derive its options from the distinct `table_number` values present in `reportOrders`.
+9. WHEN all filters are set to "All …", THE Orders Table SHALL display all orders in the selected date range with no filtering applied.
 
 ---
 
 ### Requirement 11: Orders Table Columns and Row Actions
 
-**User Story:** As a restaurant manager, I want the orders table to show complete bill details and provide quick row-level actions, so that I can review, edit, or take action on any order without leaving the page.
+**User Story:** As a restaurant manager, I want the orders table to show complete bill details with clear invoice numbers and provide quick row-level actions, so that I can review, edit, or take action on any order without leaving the page.
 
 #### Acceptance Criteria
 
-1. THE Orders Table SHALL display the following columns for each order: Bill #, Date & Time, Order #, Table, Customer, Staff, Items (item count or summary), Subtotal, Discount, Tax, Charges, Total, Paid, Balance, Payment Method, Status (coloured badge), Actions.
-2. THE Status Badge SHALL use colour coding consistent with the existing `getStatusColor` function (pending = yellow, preparing = blue, ready = green, completed = grey, cancelled = red, credit/due = orange).
-3. THE Actions Column SHALL provide three icon buttons per row: View (eye icon), Edit (pencil icon), and a More/Delete action.
-4. WHEN the View action is clicked, THE ReportsPage SHALL open the existing view-order modal for that order.
-5. WHEN the Edit action is clicked, THE ReportsPage SHALL open the existing `EditOrderModal` for that order.
-6. WHEN the Delete/More action is triggered, THE ReportsPage SHALL open the existing delete-confirm modal for that order.
-7. THE Orders Table SHALL be horizontally scrollable on viewports narrower than 1024px so all columns remain accessible.
+1. THE Orders Table SHALL display the following columns for each order: Invoice #, Date & Time, Order ID, Table, Customer, Staff, Items (item count or summary), Subtotal, Discount, Tax, Charges, Total, Paid, Balance, Payment Method, Status (coloured badge), Actions.
+2. THE Invoice # Column SHALL display a human-readable invoice number in the format:
+   - IF `order.bill_number` exists: display `order.bill_number` (e.g., "INV-0001234")
+   - ELSE IF `order.order_number` exists: display `order.order_number` formatted with prefix (e.g., "ORD-0001234")
+   - ELSE: display a formatted ID using date-based sequence (e.g., "241222-0042" for 42nd order on Dec 22, 2024)
+3. THE Order ID Column SHALL display a shortened technical identifier for support/debugging purposes:
+   - Display the first 8 characters of `order.id` in uppercase (e.g., "A3B4C5D6")
+   - This provides traceability to the database record without cluttering the UI
+4. THE Invoice # SHALL be prominently displayed as the primary identifier (bold, colored) for easy invoice tracking.
+5. THE Status Badge SHALL use colour coding consistent with the existing `getStatusColor` function (pending = yellow, preparing = blue, ready = green, completed = grey, cancelled = red, credit/due = orange).
+6. THE Actions Column SHALL provide three icon buttons per row: View (eye icon), Edit (pencil icon), and a More/Delete action.
+7. WHEN the View action is clicked, THE ReportsPage SHALL open the existing view-order modal for that order.
+8. WHEN the Edit action is clicked, THE ReportsPage SHALL open the existing `EditOrderModal` for that order.
+9. WHEN the Delete/More action is triggered, THE ReportsPage SHALL open the existing delete-confirm modal for that order.
+10. THE Orders Table SHALL be horizontally scrollable on viewports narrower than 1024px so all columns remain accessible.
 
 ---
 
