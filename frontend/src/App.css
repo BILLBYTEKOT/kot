@@ -231,6 +231,18 @@ button:active {
 .reports-kpi-red::before { background:#fecdd3; }.reports-kpi-orange::before { background:#fed7aa; }.reports-kpi-green::before { background:#bbf7d0; }
 @media (max-width: 900px) { .reports-heading-row { align-items:flex-start; flex-direction:column; } .reports-heading-actions { width:100%; justify-content:flex-start; } .reports-kpi-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
 @media (max-width: 520px) { .reports-heading-actions > * { flex:1 1 100%; } .reports-timezone { min-width:0; } .reports-kpi-grid { grid-template-columns:1fr; } }
+
+/* Keep the overview as a full-width dashboard beside the fixed sidebar. */
+.reports-page,
+.reports-page > *,
+.reports-page [role="tabpanel"] { width: 100%; max-width: none; min-width: 0; }
+.reports-page [data-testid="daily-orders-card"],
+.reports-page [data-testid="daily-sales-card"],
+.reports-page [data-testid="avg-order-card"] { width: 100%; min-width: 0; }
+.reports-page [role="tabpanel"] > .grid:has([data-testid="daily-orders-card"]) { width: 100%; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (max-width: 767px) {
+  .reports-page [role="tabpanel"] > .grid:has([data-testid="daily-orders-card"]) { grid-template-columns: 1fr; }
+}
 .reports-page {
   width: 100%;
   max-width: none;
