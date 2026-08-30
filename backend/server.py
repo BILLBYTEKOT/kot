@@ -9577,10 +9577,12 @@ async def daily_report(current_user: dict = Depends(get_current_user)):
     # Convert to UTC for database query (MongoDB stores UTC strings)
     today_utc = today_ist.astimezone(timezone.utc)
     
-    # ✅ CRITICAL BUGFIX: Use string comparison that works with MongoDB ISO strings
-    # MongoDB stores dates like "2024-08-31T09:00:00+00:00" or "2024-08-31T09:00:00.123456+00:00"
-    # We need to strip the timezone and microseconds to compare just the date portion
-    today_utc_str = today_utc.strftime("%Y-%m-%dT00:00:00")
+    # ✅ CRITICAL BUGFIX: Use the ACTUAL UTC instant of IST midnight for comparison.
+    # IST midnight == previous day 18:30 UTC. Previously this used
+    # strftime("%Y-%m-%dT00:00:00") which threw away the 18:30 offset and
+    # snapped the boundary back to UTC midnight, pulling ~5.5 hours of the
+    # PREVIOUS IST day's orders into "today" (and mislabelling the day).
+    today_utc_str = today_utc.strftime("%Y-%m-%dT%H:%M:%S")
     
     print(f"🔍 DEBUG: Querying orders >= {today_utc_str} for org {user_org_id}")
     

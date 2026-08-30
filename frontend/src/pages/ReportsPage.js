@@ -1781,10 +1781,22 @@ const ReportsPage = ({ user }) => {
 
   const PAYMENT_COLORS = { Cash: '#10b981', UPI: '#3b82f6', Card: '#f59e0b', Online: '#8b5cf6', Other: '#6b7280' };
 
+  // Bucket an order's created_at into its IST calendar day (YYYY-MM-DD).
+  // created_at is stored in UTC, so we must shift by +5:30 before slicing the
+  // date, otherwise late-night IST orders fall into the previous UTC day and
+  // show up under "yesterday".
+  const istDayKey = (createdAt) => {
+    if (!createdAt) return 'Unknown';
+    const d = new Date(createdAt);
+    if (isNaN(d.getTime())) return 'Unknown';
+    const ist = new Date(d.getTime() + (5 * 60 + 30) * 60 * 1000);
+    return ist.toISOString().split('T')[0];
+  };
+
   const salesTrendData = useMemo(() => {
     const map = {};
     (reportOrders || []).forEach(o => {
-      const day = o.created_at ? String(o.created_at).split('T')[0] : 'Unknown';
+      const day = istDayKey(o.created_at);
       if (!map[day]) map[day] = { date: day, sales: 0, orders: 0 };
       map[day].sales += Number(o.total) || 0;
       map[day].orders += 1;
@@ -1979,7 +1991,7 @@ const ReportsPage = ({ user }) => {
               </CardContent>
             </Card>
 
-            {/* KPI Cards � 8 cards */}
+            {/* KPI Cards - 8 cards */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               {[
                 { label: 'Total Sales', value: `₹${kpiCurrent.totalSales.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`, Icon: TrendingUp, bg: 'bg-indigo-100', ic: 'text-indigo-600', trend: trendPct(kpiCurrent.totalSales, kpiPrior.totalSales) },
