@@ -66,6 +66,7 @@ const ReportsPage = ({ user }) => {
   const [menuItems, setMenuItems] = useState([]);
   const [businessSettings, setBusinessSettings] = useState({});
   const [reportOrders, setReportOrders] = useState([]);
+  const [selectedRangeTotal, setSelectedRangeTotal] = useState(0);
   const [reportOrdersLoading, setReportOrdersLoading] = useState(false);
   const [editOrderModal, setEditOrderModal] = useState({ open: false, order: null });
   const [deleteConfirmModal, setDeleteConfirmModal] = useState({ open: false, order: null });
@@ -97,7 +98,7 @@ const ReportsPage = ({ user }) => {
     yesterday: () => {
       const yesterday = new Date();
       yesterday.setDate(yesterday.getDate() - 1);
-      const date = yesterday.toISOString().split("T")[0];
+      const date = formatLocalDate(yesterday);
       return { start_date: date, end_date: date };
     },
     week: () => {
@@ -105,8 +106,8 @@ const ReportsPage = ({ user }) => {
       const start = new Date();
       start.setDate(start.getDate() - 7);
       return { 
-        start_date: start.toISOString().split("T")[0], 
-        end_date: end.toISOString().split("T")[0] 
+        start_date: formatLocalDate(start), 
+        end_date: formatLocalDate(end) 
       };
     },
     fifteenDays: () => {
@@ -114,8 +115,8 @@ const ReportsPage = ({ user }) => {
       const start = new Date();
       start.setDate(start.getDate() - 15);
       return {
-        start_date: start.toISOString().split("T")[0],
-        end_date: end.toISOString().split("T")[0]
+        start_date: formatLocalDate(start),
+        end_date: formatLocalDate(end)
       };
     },
     month: () => {
@@ -123,16 +124,16 @@ const ReportsPage = ({ user }) => {
       const start = new Date();
       start.setDate(start.getDate() - 30);
       return { 
-        start_date: start.toISOString().split("T")[0], 
-        end_date: end.toISOString().split("T")[0] 
+        start_date: formatLocalDate(start), 
+        end_date: formatLocalDate(end) 
       };
     },
     thisMonth: () => {
       const end = new Date();
       const start = new Date(end.getFullYear(), end.getMonth(), 1);
       return { 
-        start_date: start.toISOString().split("T")[0], 
-        end_date: end.toISOString().split("T")[0] 
+        start_date: formatLocalDate(start), 
+        end_date: formatLocalDate(end) 
       };
     },
     lastMonth: () => {
@@ -140,8 +141,8 @@ const ReportsPage = ({ user }) => {
       end.setDate(0); // Last day of previous month
       const start = new Date(end.getFullYear(), end.getMonth(), 1);
       return { 
-        start_date: start.toISOString().split("T")[0], 
-        end_date: end.toISOString().split("T")[0] 
+        start_date: formatLocalDate(start), 
+        end_date: formatLocalDate(end) 
       };
     }
   }), []);
@@ -151,11 +152,6 @@ const ReportsPage = ({ user }) => {
     setDateRange(datePresets[preset]());
   }, [datePresets]);
 
-  const reportOrdersTotal = useMemo(
-    () => reportOrders.reduce((sum, order) => sum + (Number(order?.total) || 0), 0),
-    [reportOrders]
-  );
-
   const fetchReportOrders = useCallback(async () => {
     setReportOrdersLoading(true);
     try {
@@ -163,6 +159,7 @@ const ReportsPage = ({ user }) => {
         params: dateRange,
       });
       setReportOrders(response.data.orders || []);
+      setSelectedRangeTotal(Number(response.data.total_sales) || 0);
     } catch (error) {
       console.error("Failed to fetch report orders", error);
       toast.error("Failed to load orders for selected date range");
@@ -1975,7 +1972,7 @@ const ReportsPage = ({ user }) => {
                           <div className="min-w-0">
                             <p className="text-[11px] text-gray-600">Selected Total</p>
                             <p className="text-lg font-bold text-violet-700 truncate">
-                              {"\u20B9"}{reportOrdersTotal.toFixed(2)}
+                              {"\u20B9"}{selectedRangeTotal.toFixed(2)}
                             </p>
                           </div>
                           <div className="text-right">
