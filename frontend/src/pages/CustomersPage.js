@@ -11,23 +11,29 @@ const CustomersPage = ({ user }) => {
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
 
   const loadCustomers = async (query = '') => {
     setLoading(true); setError('');
     try {
-      const response = await apiClient.get(`${API}/customers`, { params: query ? { search: query } : {} });
-      setCustomers(Array.isArray(response.data) ? response.data : []);
+      const response = await apiClient.get(`${API}/customers`, { params: { ...(query ? { search: query } : {}), page, limit: 25 } });
+      const payload = response.data || {};
+      setCustomers(Array.isArray(payload) ? payload : (payload.customers || []));
+      setTotal(payload.total || (Array.isArray(payload) ? payload.length : 0));
     } catch (requestError) { setError(requestError.response?.data?.detail || 'Unable to load customers.'); }
     finally { setLoading(false); }
   };
 
   useEffect(() => { loadCustomers(); }, []);
-  useEffect(() => { const timer = window.setTimeout(() => loadCustomers(search.trim()), 300); return () => window.clearTimeout(timer); }, [search]);
+  useEffect(() => { const timer = window.setTimeout(() => loadCustomers(search.trim()), 300); return () => window.clearTimeout(timer); }, [search, page]);
+  const pageCount = Math.max(1, Math.ceil(total / 25));
 
   const totals = useMemo(() => ({
     customers: customers.length,
-    visits: customers.reduce((sum, customer) => sum + (customer.total_orders || 0), 0),
+    visits: customers.reduce((sum, customer) => sum + (customer.visits ?? customer.total_orders ?? 0), 0),
     revenue: customers.reduce((sum, customer) => sum + (customer.total_spent || 0), 0),
+    outstanding: customers.reduce((sum, customer) => sum + (customer.outstanding || 0), 0),
   }), [customers]);
 
   return (
@@ -50,6 +56,7 @@ const CustomersPage = ({ user }) => {
         </section>
 
         <section className="panel customer-list-panel"><div className="table-toolbar"><label className="search-control"><span className="sr-only">Search customers</span><Search size={18}/><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search name, phone or email" /></label><select aria-label="Customer status"><option>All Customers</option></select><select aria-label="Visit count"><option>All Visits</option></select><button type="button" className="primary-action"><UserPlus size={16}/> Add Customer</button></div>{error && <p role="alert" className="error-message">{error}</p>}{loading ? <p className="table-message">Loading customers…</p> : customers.length === 0 ? <p className="table-message">No customers found. Customers will appear here after their first bill.</p> : <div className="responsive-table"><table><thead><tr><th>Customer</th><th>Contact</th><th>Visits</th><th>Total Spent</th><th>Last Visit</th><th>Actions</th></tr></thead><tbody>{customers.map((customer) => <tr key={customer.id}><td><span className="customer-avatar">{(customer.name || 'G').charAt(0).toUpperCase()}</span><strong>{customer.name || 'Guest'}</strong></td><td><span className="contact-line"><Phone size={14}/>{customer.phone || '—'}</span>{customer.email && <small>{customer.email}</small>}</td><td>{customer.total_orders || 0}</td><td><strong>{money(customer.total_spent)}</strong></td><td>{customer.last_visit ? new Date(customer.last_visit).toLocaleDateString('en-IN') : '—'}</td><td><button type="button" className="row-action"><Eye size={14}/> View</button><button type="button" className="icon-action" aria-label={`More actions for ${customer.name || 'guest'}`}><MoreVertical size={16}/></button></td></tr>)}</tbody></table></div>}</section>
+        {!loading && customers.length > 0 && <footer className="customer-pagination"><span>Showing {(page - 1) * 25 + 1} to {Math.min(page * 25, total)} of {total} customers</span><div><button type="button" disabled={page <= 1} onClick={() => setPage((value) => value - 1)}>Previous</button><strong>{page}</strong><button type="button" disabled={page >= pageCount} onClick={() => setPage((value) => value + 1)}>Next</button></div></footer>}
       </div>
     </Layout>
   );
