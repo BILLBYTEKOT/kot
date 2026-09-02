@@ -404,12 +404,12 @@ const CounterSalePage = ({ user }) => {
       }
     }, 0);
 
-    // Reset sale UI instantly for next transaction
+    // Reset sale UI instantly for next transaction (but keep processing=true to prevent double-click)
     setTimeout(() => {
       resetSale();
       setMenuSearch('');
       searchRef.current?.focus();
-      setProcessing(false);
+      // DON'T set processing=false here - wait for API to complete
     }, 300);
 
     // Process API calls and payments in background (non-blocking)
@@ -518,8 +518,15 @@ const CounterSalePage = ({ user }) => {
       }, 5000);
 
       console.log('✅ Order completed in background:', createdOrderId);
+      
+      // Only now set processing=false after API completes successfully
+      setProcessing(false);
     } catch (error) {
       console.error('Background error processing order:', error);
+      
+      // Set processing=false on error too
+      setProcessing(false);
+      
       if (error.response?.status === 402) {
         setSubscriptionStatus((prev) => (prev ? { ...prev, needs_subscription: true } : prev));
         const errorMsg = error.response?.data?.detail || 'Subscription required to continue.';
