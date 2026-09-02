@@ -7593,7 +7593,7 @@ async def verify_payment(
     try:
         cached_service = get_cached_order_service()
         await cached_service.invalidate_order_caches(user_org_id, order_id)
-        print(f"🗑️ Cache invalidated for verified payment {order_id}")
+        print(f"��️ Cache invalidated for verified payment {order_id}")
     except Exception as e:
         print(f"⚠️ Cache invalidation error: {e}")
 
@@ -10296,7 +10296,7 @@ class WhatsAppMessage(BaseModel):
 class WhatsAppTemplateSendRequest(BaseModel):
     phone_number: str
     template_name: str
-    body_params: List[str] = []
+    body_params: List[str] = Field(default_factory=list)
     button_url: Optional[str] = None
     language: Optional[str] = None
     customer_name: Optional[str] = None
@@ -10693,9 +10693,31 @@ async def send_template_via_cloud_api(
             "utility_template": True
         }
     except Exception as e:
+        error_text = str(e)
+        error_code = None
+        error_message = error_text
+        try:
+            if "WhatsApp API error:" in error_text:
+                error_payload = json.loads(error_text.split("WhatsApp API error:", 1)[1].strip())
+                meta_error = error_payload.get("error", {})
+                error_code = meta_error.get("code")
+                error_message = meta_error.get("message") or error_text
+        except (TypeError, ValueError, json.JSONDecodeError):
+            pass
+
+        print(
+            f"[v0] WhatsApp template send failed | template={template_name} | "
+            f"error_code={error_code} | error={error_message}"
+        )
+        status_code = 400 if error_code in {131026, 131031, 131042, 131047, 132001} else 502
         raise HTTPException(
-            status_code=500,
-            detail=f"Failed to send template: {str(e)}"
+            status_code=status_code,
+            detail={
+                "message": error_message,
+                "error_code": error_code,
+                "template_name": template_name,
+                "phone_number": request.phone_number,
+            },
         )
 
 

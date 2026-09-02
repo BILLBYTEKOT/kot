@@ -208,20 +208,33 @@ const WhatsAppDesktop = ({ isElectron: isElectronProp }) => {
         restaurantName
       });
 
+      const token = localStorage.getItem('token');
+      if (!token) {
+        toast.error('Your session has expired. Please sign in again.');
+        return;
+      }
+
       const response = await axios.post(`${API}/whatsapp/cloud/send-template`, {
         phone_number: phone,
         template_name: selectedTemplate,
         body_params: bodyParams,
         customer_name: customerName || undefined
+      }, {
+        headers: { Authorization: `Bearer ${token}` }
       });
 
       if (response.data?.success) {
         toast.success('Approved utility template sent via WhatsApp Cloud API');
       } else {
-        toast.error('Template send failed');
+        toast.error(response.data?.message || 'Template send failed');
       }
     } catch (error) {
-      toast.error(error.response?.data?.detail || 'Error sending template');
+      const detail = error.response?.data?.detail;
+      const message = typeof detail === 'string'
+        ? detail
+        : detail?.message || detail?.error || 'Error sending template';
+      toast.error(message);
+      console.error('[v0] WhatsApp template send failed:', error.response?.data || error.message);
     } finally {
       setSending(false);
     }
