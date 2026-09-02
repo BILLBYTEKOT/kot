@@ -40,7 +40,10 @@ class WhatsAppTemplate(BaseModel):
     meta_category: Optional[str] = Field(None, description="Actual Meta category: UTILITY, MARKETING, or AUTHENTICATION")
     approval_status: Optional[str] = Field(None, description="Meta approval status: APPROVED, PENDING, REJECTED, or DISABLED")
     last_verified: Optional[datetime] = Field(None, description="Last verification timestamp from Meta API")
-    quality_score: Optional[str] = Field(None, description="Meta quality score: HIGH, MEDIUM, LOW")
+    quality_score: Optional[Any] = Field(
+        None,
+        description="Meta quality score returned by Meta (string or score metadata object)",
+    )
     
     def is_utility_template(self) -> bool:
         """
