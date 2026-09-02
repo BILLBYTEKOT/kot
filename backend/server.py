@@ -10290,7 +10290,7 @@ class WhatsAppMessage(BaseModel):
 class WhatsAppTemplateSendRequest(BaseModel):
     phone_number: str
     template_name: str
-    body_params: List[str] = []
+    body_params: List[str] = Field(default_factory=list)
     button_url: Optional[str] = None
     language: Optional[str] = None
     customer_name: Optional[str] = None
@@ -10667,13 +10667,21 @@ async def send_template_via_cloud_api(
     except Exception as consent_err:
         print(f"⚠️ Template send consent capture failed for {request.phone_number}: {consent_err}")
 
+    body_params = [str(value).strip() for value in (request.body_params or [])]
+    if any(not value for value in body_params):
+        raise HTTPException(status_code=400, detail="body_params cannot contain empty values")
+
+    language = (request.language or whatsapp_api.template_lang or "en_US").strip()
+    if not language:
+        raise HTTPException(status_code=400, detail="language is required")
+
     try:
         result = await whatsapp_api.send_template_message(
             to_phone=request.phone_number,
             template_name=template_name,
-            params=request.body_params or [],
-            language=(request.language or whatsapp_api.template_lang or "en_US"),
-            button_url=request.button_url
+            params=body_params,
+            language=language,
+            button_url=request.button_url.strip() if request.button_url else None
         )
 
         return {
@@ -10687,9 +10695,14 @@ async def send_template_via_cloud_api(
             "utility_template": True
         }
     except Exception as e:
+        error_text = str(e)
+        # Meta rejects template sends for client/request issues; expose a useful
+        # 4xx response instead of making the UI report an opaque server failure.
+        client_error_codes = ("131031", "131026", "131047", "132001", "132000", "132012")
+        status_code = 400 if any(code in error_text for code in client_error_codes) else 502
         raise HTTPException(
-            status_code=500,
-            detail=f"Failed to send template: {str(e)}"
+            status_code=status_code,
+            detail=f"Failed to send template '{template_name}' ({language}): {error_text}"
         )
 
 
