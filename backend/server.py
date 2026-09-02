@@ -9551,40 +9551,38 @@ async def inventory_insights(current_user: dict = Depends(get_current_user)):
 
 
 # Reports
+IST = timezone(timedelta(hours=5, minutes=30))
+
+
+def ist_day_bounds(day_start: datetime):
+    """Return UTC string bounds for an India calendar day."""
+    start_ist = day_start.replace(hour=0, minute=0, second=0, microsecond=0, tzinfo=IST)
+    end_ist = start_ist + timedelta(days=1)
+    return (
+        start_ist.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S"),
+        end_ist.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S"),
+    )
+
+
 @api_router.get("/reports/daily")
 async def daily_report(current_user: dict = Depends(get_current_user)):
     user_org_id = get_secure_org_id(current_user)
-    
-    # ✅ PERFORMANCE: Check cache first (30-second TTL for real-time dashboard updates)
-    cache_key = f"daily_report:{user_org_id}"
+
+    now_ist = datetime.now(IST)
+    today_ist = now_ist.replace(hour=0, minute=0, second=0, microsecond=0)
+    today_utc_str, tomorrow_utc_str = ist_day_bounds(today_ist)
+
+    # Include the IST business date in the key so midnight cannot reuse yesterday's result.
+    cache_key = f"daily_report:{user_org_id}:{today_ist.date().isoformat()}"
     current_time = time.time()
-    
+
     with _cache_lock:
         if cache_key in _cache and cache_key in _cache_ttl:
             if current_time < _cache_ttl[cache_key]:
-                print(f"💾 Cache hit for daily_report: {cache_key}")
+                print(f"Cache hit for daily_report: {cache_key}")
                 return _cache[cache_key]
-    
-    # ✅ BUGFIX: Use IST (Indian Standard Time) for "today" calculation
-    # IST is UTC+5:30
-    from datetime import timedelta
-    IST = timezone(timedelta(hours=5, minutes=30))
-    
-    # Get current time in IST and find start of today in IST
-    now_ist = datetime.now(IST)
-    today_ist = now_ist.replace(hour=0, minute=0, second=0, microsecond=0)
-    
-    # Convert to UTC for database query (MongoDB stores UTC strings)
-    today_utc = today_ist.astimezone(timezone.utc)
-    
-    # ✅ CRITICAL BUGFIX: Use the ACTUAL UTC instant of IST midnight for comparison.
-    # IST midnight == previous day 18:30 UTC. Previously this used
-    # strftime("%Y-%m-%dT00:00:00") which threw away the 18:30 offset and
-    # snapped the boundary back to UTC midnight, pulling ~5.5 hours of the
-    # PREVIOUS IST day's orders into "today" (and mislabelling the day).
-    today_utc_str = today_utc.strftime("%Y-%m-%dT%H:%M:%S")
-    
-    print(f"🔍 DEBUG: Querying orders >= {today_utc_str} for org {user_org_id}")
+
+    print(f"Querying IST day {today_ist.date()} from {today_utc_str} to {tomorrow_utc_str} for org {user_org_id}")
     
     # Optimized: Use database query instead of filtering in Python
     # Include all orders from today that have been paid (not just completed)
@@ -9596,8 +9594,8 @@ async def daily_report(current_user: dict = Depends(get_current_user)):
             {"is_credit": False, "total": {"$gt": 0}}  # Non-credit orders
         ],
         "organization_id": user_org_id,
-        "created_at": {"$gte": today_utc_str}
-    }, {"_id": 0}).sort("created_at", -1).to_list(1000)
+        "created_at": {"$gte": today_utc_str, "$lt": tomorrow_utc_str}
+        }, {"_id": 0}).sort("created_at", -1).to_list(1000)
 
     # Use aggregation for better performance - include paid orders
     pipeline = [
@@ -9605,7 +9603,7 @@ async def daily_report(current_user: dict = Depends(get_current_user)):
             "$match": {
                 "status": {"$in": ["completed", "paid"]},
                 "organization_id": user_org_id,
-                "created_at": {"$gte": today_utc_str}
+                "created_at": {"$gte": today_utc_str, "$lt": tomorrow_utc_str}
             }
         },
         {
