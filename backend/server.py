@@ -10407,7 +10407,20 @@ Tax: {currency_symbol}{order['tax']:.2f}
     # Prefer Cloud API if configured
     if _WHATSAPP_CLOUD_AVAILABLE and whatsapp_api and whatsapp_api.is_configured():
         try:
-            receipt_url = build_public_receipt_url(order.get("tracking_token", ""), order=order, business=business) if order.get("tracking_token") else None
+            tracking_token = order.get("tracking_token")
+            if not tracking_token:
+                tracking_token = await generate_short_tracking_token()
+                await db.orders.update_one(
+                    {"id": order_id, "organization_id": user_org_id},
+                    {"$set": {"tracking_token": tracking_token}},
+                )
+                order["tracking_token"] = tracking_token
+
+            receipt_url = build_public_receipt_url(
+                tracking_token,
+                order=order,
+                business=business
+            )
             result = await send_whatsapp_receipt_cloud(
                 message_data.phone_number,
                 order,

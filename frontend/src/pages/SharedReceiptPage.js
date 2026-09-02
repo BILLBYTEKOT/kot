@@ -3,7 +3,10 @@ import { Download, Printer, CheckCircle2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || window.location.origin;
+const CONFIGURED_BACKEND_URL = process.env.REACT_APP_BACKEND_URL || '';
+const BACKEND_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+  ? (CONFIGURED_BACKEND_URL || window.location.origin)
+  : window.location.origin;
 const CURRENCY_SYMBOLS = { INR: '₹', USD: '$', EUR: '€', GBP: '£', AED: 'د.إ' };
 const THEMES = {
   classic: { accent: 'bg-slate-900', soft: 'bg-slate-50', border: 'border-slate-200', ink: 'text-slate-900', muted: 'text-slate-500', radius: 'rounded-2xl', label: 'Classic' },
