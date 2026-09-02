@@ -6,7 +6,7 @@ tags:
 - git
 - hotspot
 created: 2026-08-30
-updated: 2026-08-30
+updated: 2026-09-02
 filenames:
 - frontend/PRINT_SYSTEM_LLD.md
 links: []
@@ -14,7 +14,7 @@ kind: code
 status: proposed
 superseded_by: null
 deprecated_at: null
-review_after: 2026-08-30
+review_after: 2026-09-02
 source_chat_id: null
 created_at: 2026-08-30T16:14:24.583138400+00:00
 summary: null

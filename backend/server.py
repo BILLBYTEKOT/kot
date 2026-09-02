@@ -9812,7 +9812,12 @@ async def export_report(
     start, end = _ist_range_bounds(start_date, end_date)
     orders = await db.orders.find({
         "organization_id": user_org_id,
-        "created_at": {"$gte": start.isoformat(), "$lt": end.isoformat()}
+        "$or": [
+            # Newer orders are stored as ISO strings.
+            {"created_at": {"$gte": start.isoformat(), "$lt": end.isoformat()}},
+            # Older imports may contain native MongoDB datetime values.
+            {"created_at": {"$gte": start, "$lt": end}}
+        ]
     }, {"_id": 0}).to_list(5000)
     
     filtered_orders = []

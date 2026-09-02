@@ -5,7 +5,7 @@ tags:
 - git
 - lesson
 created: 2026-08-30
-updated: 2026-08-30
+updated: 2026-09-02
 filenames:
 - .emergent/emergent.yml
 - frontend/src/App.js
@@ -15,7 +15,7 @@ kind: lesson
 status: proposed
 superseded_by: null
 deprecated_at: null
-review_after: 2026-08-30
+review_after: 2026-09-02
 source_chat_id: null
 created_at: 2026-08-30T16:24:43.660412100+00:00
 summary: null
