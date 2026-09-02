@@ -13550,7 +13550,7 @@ async def _customer_activity(customer: dict, organization_id: str):
     name = str(customer.get("name") or "").strip()
     clauses = [{"customer_id": customer.get("id")}] if customer.get("id") else []
     if phone:
-        clauses.append({"customer_phone": phone})
+        clauses.extend([{"customer_phone": phone}, {"phone": phone}, {"customer_phone_number": phone}])
     if name:
         clauses.append({"customer_name": name, "customer_phone": {"$in": [None, ""]}})
     query = {"organization_id": organization_id, "$or": clauses}
@@ -13563,8 +13563,8 @@ async def _customer_activity(customer: dict, organization_id: str):
             continue
         valid[str(identity)] = order
     activity = list(valid.values())
-    total = sum(float(item.get("total") or 0) for item in activity)
-    paid = sum(float(item.get("payment_received") or 0) for item in activity)
+    total = sum(float(item.get("total") or item.get("grand_total") or item.get("total_amount") or 0) for item in activity)
+    paid = sum(float(item.get("payment_received") or item.get("amount_paid") or item.get("cash_amount", 0) or 0) for item in activity)
     dates = [item.get("created_at") for item in activity if item.get("created_at")]
     return {**customer, "total_orders": len(activity), "visits": len(activity), "total_spent": round(total, 2), "paid": round(paid, 2), "outstanding": round(max(0, total - paid), 2), "average_bill": round(total / len(activity), 2) if activity else 0, "first_visit": min(dates) if dates else None, "last_visit": max(dates) if dates else None, "orders": activity}
 
