@@ -5679,17 +5679,26 @@ async def send_whatsapp_receipt_auto(
         cleaned_phone = normalize_phone_e164(customer_phone)
         template_name = whatsapp_api.get_bill_template_name()
         customer_name = (order.get("customer_name") or "Customer")
-        order_id_short = str(order.get("invoice_number") or order.get("id", ""))[:8].upper()
-        currency = (business or {}).get("currency", "INR")
-        amount = f"{currency} {order.get('total', 0):.2f}"
-        template_params = [customer_name, order_id_short, amount]
-        receipt_url = build_public_receipt_url(order.get("tracking_token", ""), order=order, business=business) if order.get("tracking_token") else None
+        tracking_token = order.get("tracking_token")
+        if not tracking_token:
+            tracking_token = await generate_short_tracking_token()
+            await db.orders.update_one(
+                {"id": order.get("id"), "organization_id": user_org_id},
+                {"$set": {"tracking_token": tracking_token}},
+            )
+            order["tracking_token"] = tracking_token
+
+        receipt_url = build_public_receipt_url(
+            tracking_token,
+            order=order,
+            business=business
+        )
 
         result = await send_whatsapp_receipt_cloud(cleaned_phone, order, business, receipt_url=receipt_url)
         msg_id = result.get("messages", [{}])[0].get("id", "")
         if not msg_id:
             raise RuntimeError("Meta accepted the request without returning a WhatsApp message ID")
-        print(f"✅ WA receipt accepted | to={cleaned_phone} | template={template_name} | language=en_US | params={template_params} | status=accepted | msg_id={msg_id}")
+        print(f"✅ WA receipt accepted | to={cleaned_phone} | template={template_name} | language=en_US | params=4 | status=accepted | msg_id={msg_id}")
         return {
             "whatsapp_sent": True,
             "whatsapp_mode": "cloud",

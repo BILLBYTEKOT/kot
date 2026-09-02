@@ -498,8 +498,7 @@ class WhatsAppCloudAPI:
         check actual conversation history from database.
         """
         # TODO: Implement proper customer service window checking
-        # This would require checking when customer last messaged us
-        # For now, return False to be conservative
+       
         print(f" Customer service window check not implemented for {phone}")
         print(f"   Assuming window is CLOSED - only UTILITY templates will work")
         return False
