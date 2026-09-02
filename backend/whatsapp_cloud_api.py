@@ -45,8 +45,12 @@ class WhatsAppCloudAPI:
         # Keep the name/language stable: a 200 response is not delivery confirmation.
         self.template_bill_confirmation = "payment_receipt_with_invoice_link"
         self.template_lang = "en_US"
-        self.template_bill_uses_receipt_url = False
-        self.template_bill_use_url_button = True
+        # Meta template configuration: the approved receipt template shown in
+        # Business Manager has four BODY variables, including the receipt URL.
+        # It does not have a dynamic URL button, so do not append a button
+        # component to the Cloud API payload.
+        self.template_bill_uses_receipt_url = True
+        self.template_bill_use_url_button = False
         self.template_status_pending = os.getenv("WHATSAPP_TEMPLATE_STATUS_PENDING", "order").strip()
         self.template_status_preparing = os.getenv("WHATSAPP_TEMPLATE_STATUS_PREPARING", "order_preparing").strip()
         self.template_status_ready = os.getenv("WHATSAPP_TEMPLATE_STATUS_READY", "order_ready").strip()
