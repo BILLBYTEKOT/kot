@@ -5707,7 +5707,7 @@ async def send_whatsapp_receipt_auto(
             "message_id": msg_id,
         }
     except Exception as e:
-        print(f"❌ WA receipt failed | to={customer_phone} | status=failed | error={e}")
+        print(f" WA receipt failed | to={customer_phone} | status=failed | error={e}")
         return {"whatsapp_sent": False, "whatsapp_error": str(e)}
 
 
