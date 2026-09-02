@@ -3180,12 +3180,27 @@ async def get_dashboard(current_user: dict = Depends(get_current_user)):
         # Convert to UTC for database query
         today_utc = today_ist.astimezone(timezone.utc)
         
-        # Get today's orders using the complete IST calendar-day window.
-        tomorrow_utc = (today_ist + timedelta(days=1)).astimezone(timezone.utc)
-        today_orders = await db.orders.find({
-            "organization_id": user_org_id,
-            "created_at": {"$gte": today_utc.isoformat(), "$lt": tomorrow_utc.isoformat()}
-        }, {"_id": 0}).to_list(5000)
+        # Read organization orders and compare parsed timestamps in IST. This supports
+        # legacy ISO strings, BSON datetimes, and timestamps without timezone offsets.
+        organization_orders = await db.orders.find({"organization_id": user_org_id}, {"_id": 0}).to_list(10000)
+        tomorrow_ist = today_ist + timedelta(days=1)
+        def order_in_window(order, start_ist, end_ist):
+            value = order.get("created_at") or order.get("updated_at")
+            if not value:
+                return False
+            try:
+                if isinstance(value, datetime):
+                    parsed = value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+                else:
+                    raw = str(value).replace("Z", "+00:00")
+                    parsed = datetime.fromisoformat(raw)
+                    if parsed.tzinfo is None:
+                        parsed = parsed.replace(tzinfo=timezone.utc)
+                local = parsed.astimezone(IST)
+                return start_ist <= local < end_ist
+            except (TypeError, ValueError, OverflowError):
+                return False
+        today_orders = [order for order in organization_orders if order_in_window(order, today_ist, tomorrow_ist)]
         today_completed_orders = [order for order in today_orders if _is_bill_counted(order)]
         todays_revenue = sum(_order_amount(order) for order in today_completed_orders)
         
@@ -3199,13 +3214,8 @@ async def get_dashboard(current_user: dict = Depends(get_current_user)):
         month_start = now_ist.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         month_start_utc = month_start.astimezone(timezone.utc)
         
-        monthly_orders = await db.orders.find({
-            "organization_id": user_org_id,
-            "created_at": {"$gte": month_start_utc.isoformat()},
-            "status": {"$in": ["completed", "paid"]}
-        }, {"_id": 0}).to_list(5000)
-        
-        monthly_revenue = sum(order.get("total", 0) for order in monthly_orders)
+        monthly_orders = [order for order in organization_orders if order_in_window(order, month_start, tomorrow_ist) and _is_bill_counted(order)]
+        monthly_revenue = sum(_order_amount(order) for order in monthly_orders)
         
         # Get total orders count (all time)
         total_orders = await db.orders.count_documents({
@@ -3225,17 +3235,7 @@ async def get_dashboard(current_user: dict = Depends(get_current_user)):
         
     except Exception as e:
         print(f"❌ Dashboard error: {e}")
-        return {
-            "todaysRevenue": 0,
-            "todaysOrders": 0,
-            "todaysCompletedOrders": 0,
-            "totalOrders": 0,
-            "pendingOrders": 0,
-            "monthlyRevenue": 0,
-            "monthlyOrders": 0,
-            "error": str(e),
-            "timestamp": datetime.now().isoformat()
-        }
+        raise HTTPException(status_code=500, detail="Unable to load dashboard data") from e
 
 
 @api_router.put("/users/me/onboarding")

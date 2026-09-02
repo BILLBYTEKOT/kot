@@ -24,6 +24,7 @@ const Dashboard = ({ user }) => {
   const [todaysBills, setTodaysBills] = useState([]);
   const [businessSettingsData, setBusinessSettingsData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [dashboardError, setDashboardError] = useState('');
 
   // Direct API calls for debugging
   useEffect(() => {
@@ -44,6 +45,7 @@ const Dashboard = ({ user }) => {
         console.log('🔍 Dashboard: Fetching data directly from API...');
         
         // Fetch all data in parallel
+        setDashboardError('');
         const [dashboardRes, ordersRes, billsRes] = await Promise.all([
           fetch(`${API}/dashboard`, { headers }),
           fetch(`${API}/orders`, { headers }),
@@ -53,7 +55,10 @@ const Dashboard = ({ user }) => {
         if (dashboardRes.ok) {
           const data = await dashboardRes.json();
           setDashboardStats(data);
+          if (data.error) setDashboardError('Dashboard data could not be reconciled. Please refresh.');
           console.log('✅ Dashboard: Dashboard data loaded:', data);
+        } else {
+          setDashboardError(`Dashboard request failed (${dashboardRes.status}). Please refresh.`);
         }
 
         if (ordersRes.ok) {
@@ -228,6 +233,7 @@ const Dashboard = ({ user }) => {
       <div className="dashboard-shell" data-testid="dashboard-page">
         {/* Trial Banner */}
         <TrialBanner user={user} />
+        {dashboardError && <div role="alert" className="dashboard-data-error">{dashboardError}</div>}
 
         {/* Header Section */}
         <div className="dashboard-hero flex flex-col sm:flex-row sm:items-center justify-between gap-4">

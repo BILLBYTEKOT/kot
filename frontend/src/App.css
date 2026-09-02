@@ -835,6 +835,8 @@ html {
   }
 }
 
+.dashboard-data-error { padding:.75rem 1rem; border:1px solid #f1b6b6; border-radius:.55rem; background:#fff4f4; color:#a33a3a; font-size:.8rem; }
+
 /* Customer details and billing history */
 .customer-modal-backdrop { position:fixed; inset:0; z-index:20; display:grid; place-items:center; padding:1rem; background:rgba(15,23,42,.35); }
 .customer-modal { width:min(100%, 560px); max-height:90vh; overflow:auto; padding:1.25rem; border:1px solid #e8eaf1; border-radius:.8rem; background:#fff; box-shadow:0 24px 80px rgba(15,23,42,.2); }
