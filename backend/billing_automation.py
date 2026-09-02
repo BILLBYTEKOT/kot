@@ -11,6 +11,21 @@ from datetime import datetime
 from whatsapp_cloud_api import whatsapp_api
 
 
+def _build_receipt_url(order_data: Dict[str, Any]) -> Optional[str]:
+    """Build the public receipt link required by the approved receipt template."""
+    tracking_token = order_data.get("tracking_token")
+    if not tracking_token:
+        return None
+
+    site_url = (
+        os.getenv("PUBLIC_FRONTEND_URL")
+        or os.getenv("FRONTEND_URL")
+        or os.getenv("PUBLIC_SITE_URL")
+        or "https://billbytekot.in"
+    ).rstrip("/")
+    return f"{site_url}/receipt/{tracking_token}"
+
+
 async def send_bill_via_whatsapp(
     tenant_id: str,
     invoice_id: str,
@@ -42,7 +57,20 @@ async def send_bill_via_whatsapp(
         return {"success": False, "status": "invalid_phone", "error": f"Invalid phone: {customer_phone}"}
 
     try:
-        response = await whatsapp_api.send_receipt(phone, order_data, business_data)
+        receipt_url = _build_receipt_url(order_data)
+        if not receipt_url:
+            return {
+                "success": False,
+                "status": "missing_receipt_url",
+                "error": "Order has no tracking token for the receipt template"
+            }
+
+        response = await whatsapp_api.send_receipt(
+            phone,
+            order_data,
+            business_data,
+            receipt_url=receipt_url
+        )
         message_id = response.get("messages", [{}])[0].get("id", "")
 
         print(f"✅ WA bill sent | invoice={invoice_id} | to={phone} | msg_id={message_id}")
@@ -63,7 +91,13 @@ async def send_bill_via_whatsapp(
             except Exception as db_err:
                 print(f"⚠️ WA log DB error (non-blocking): {db_err}")
 
-        return {"success": True, "message_id": message_id, "status": "sent", "customer_phone": phone}
+        return {
+            "success": True,
+            "message_id": message_id,
+            "status": "sent",
+            "customer_phone": phone,
+            "receipt_url": receipt_url
+        }
 
     except Exception as e:
         error_msg = str(e)
