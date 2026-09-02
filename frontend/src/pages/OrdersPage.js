@@ -1690,9 +1690,11 @@ const OrdersPage = ({ user }) => {
       toast.success('Order updated successfully!');
       setEditOrderModal({ open: false, order: null });
       await fetchOrders();
+      return true;
     } catch (error) {
       console.error('Update order failed:', error);
       // Error handling is done by apiWithRetry
+      return false;
     }
   };
 
@@ -2775,12 +2777,22 @@ const OrdersPage = ({ user }) => {
                         {config.label}
                       </span>
                       {['admin', 'cashier'].includes(user?.role) && (
-                        <button
-                          onClick={() => setActionMenuOpen(actionMenuOpen === order.id ? null : order.id)}
-                          className="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center"
-                        >
-                          <MoreVertical className="w-4 h-4 text-gray-400" />
-                        </button>
+                        <>
+                          <button
+                            onClick={() => handleEditOrder(order)}
+                            aria-label={`Edit order ${order.id.slice(0, 6)}`}
+                            className="w-8 h-8 rounded-lg hover:bg-blue-50 flex items-center justify-center"
+                          >
+                            <Edit className="w-4 h-4 text-blue-600" />
+                          </button>
+                          <button
+                            onClick={() => setActionMenuOpen(actionMenuOpen === order.id ? null : order.id)}
+                            aria-label={`More actions for order ${order.id.slice(0, 6)}`}
+                            className="w-8 h-8 rounded-lg hover:bg-gray-100 flex items-center justify-center"
+                          >
+                            <MoreVertical className="w-4 h-4 text-gray-400" />
+                          </button>
+                        </>
                       )}
                     </div>
                   </div>

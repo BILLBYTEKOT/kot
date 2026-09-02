@@ -268,8 +268,10 @@ const EditOrderModal = ({
       ...paymentFields
     };
 
-    await onUpdate(payload);
-    onClose();
+    const updated = await onUpdate(payload);
+    if (updated !== false) {
+      onClose();
+    }
   };
 
   const fillRemainingCash = () => {
