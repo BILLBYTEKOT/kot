@@ -974,6 +974,7 @@ class Order(BaseModel):
     waiter_name: str
     customer_name: Optional[str] = None
     customer_phone: Optional[str] = None  # For WhatsApp notifications
+    customer_id: Optional[str] = None
     tracking_token: Optional[str] = None  # For customer live tracking
     order_type: Optional[str] = "dine_in"  # dine_in, takeaway, delivery
     organization_id: Optional[str] = None
@@ -5979,6 +5980,18 @@ async def create_order(
     tracking_token = await generate_short_tracking_token()
     order_id = str(uuid.uuid4())
     
+    # Resolve one organization-scoped customer before persisting the bill.
+    customer_id = None
+    if order_data.customer_phone:
+        phone = order_data.customer_phone.strip()
+        await db.customers.update_one(
+            {"organization_id": user_org_id, "phone": phone},
+            {"$set": {"name": order_data.customer_name or "Guest", "updated_at": datetime.now(timezone.utc).isoformat()}, "$setOnInsert": {"id": str(uuid.uuid4()), "phone": phone, "email": None, "created_at": datetime.now(timezone.utc).isoformat()}},
+            upsert=True
+        )
+        customer = await db.customers.find_one({"organization_id": user_org_id, "phone": phone}, {"id": 1})
+        customer_id = customer.get("id") if customer else None
+
     # Create order object WITHOUT invoice number (will be set in background)
     order_obj = Order(
         id=order_id,
@@ -5993,6 +6006,7 @@ async def create_order(
         waiter_name=current_user["username"],
         customer_name=order_data.customer_name,
         customer_phone=order_data.customer_phone,
+        customer_id=customer_id,
         tracking_token=tracking_token,
         order_type=order_data.order_type or ("takeaway" if getattr(order_data, "quick_billing", False) else "dine_in"),
         organization_id=user_org_id,
@@ -13530,6 +13544,31 @@ async def export_orders_to_excel(
 
 
 # Customer Management Models
+async def _customer_activity(customer: dict, organization_id: str):
+    """Resolve bill activity with tenant scoping and legacy compatibility."""
+    phone = str(customer.get("phone") or "").strip()
+    name = str(customer.get("name") or "").strip()
+    clauses = [{"customer_id": customer.get("id")}] if customer.get("id") else []
+    if phone:
+        clauses.append({"customer_phone": phone})
+    if name:
+        clauses.append({"customer_name": name, "customer_phone": {"$in": [None, ""]}})
+    query = {"organization_id": organization_id, "$or": clauses}
+    orders = await db.orders.find(query, {"_id": 0}).sort("created_at", -1).to_list(length=2000)
+    valid = {}
+    for order in orders:
+        identity = order.get("invoice_number") or order.get("id") or str(order.get("_id"))
+        status = str(order.get("status") or "").lower()
+        if status in {"cancelled", "canceled", "draft", "pending"}:
+            continue
+        valid[str(identity)] = order
+    activity = list(valid.values())
+    total = sum(float(item.get("total") or 0) for item in activity)
+    paid = sum(float(item.get("payment_received") or 0) for item in activity)
+    dates = [item.get("created_at") for item in activity if item.get("created_at")]
+    return {**customer, "total_orders": len(activity), "visits": len(activity), "total_spent": round(total, 2), "paid": round(paid, 2), "outstanding": round(max(0, total - paid), 2), "average_bill": round(total / len(activity), 2) if activity else 0, "first_visit": min(dates) if dates else None, "last_visit": max(dates) if dates else None, "orders": activity}
+
+
 class Customer(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
@@ -13604,24 +13643,19 @@ async def create_customer(
 @api_router.get("/customers")
 async def get_customers(
     search: Optional[str] = None,
+    page: int = Query(1, ge=1),
+    limit: int = Query(25, ge=1, le=100),
     current_user: dict = Depends(get_current_user)
 ):
-    """Get all customers"""
+    """Return reconciled, tenant-scoped customer analytics."""
     user_org_id = get_secure_org_id(current_user)
-    
     query = {"organization_id": user_org_id}
-    
-    # Add search filter
     if search:
-        query["$or"] = [
-            {"name": {"$regex": search, "$options": "i"}},
-            {"phone": {"$regex": search, "$options": "i"}},
-            {"email": {"$regex": search, "$options": "i"}}
-        ]
-    
-    customers = await db.customers.find(query, {"_id": 0}).sort("created_at", -1).to_list(length=1000)
-    
-    return customers
+        query["$or"] = [{"name": {"$regex": search, "$options": "i"}}, {"phone": {"$regex": search, "$options": "i"}}, {"email": {"$regex": search, "$options": "i"}}]
+    raw = await db.customers.find(query, {"_id": 0}).sort("created_at", -1).to_list(length=2000)
+    enriched = [await _customer_activity(customer, user_org_id) for customer in raw]
+    start = (page - 1) * limit
+    return {"customers": [{key: value for key, value in item.items() if key != "orders"} for item in enriched[start:start + limit]], "total": len(enriched), "page": page, "limit": limit}
 
 
 @api_router.get("/customers/{customer_id}")
@@ -13640,35 +13674,9 @@ async def get_customer(
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
     
-    # Get customer's orders
-    orders = await db.orders.find({
-        "customer_phone": customer["phone"],
-        "organization_id": user_org_id
-    }, {"_id": 0}).sort("created_at", -1).to_list(length=100)
-    
-    # Calculate stats
-    total_orders = len(orders)
-    total_spent = sum(order.get("total", 0) for order in orders)
-    last_visit = orders[0].get("created_at") if orders else None
-    
-    # Update customer stats
-    await db.customers.update_one(
-        {"id": customer_id},
-        {
-            "$set": {
-                "total_orders": total_orders,
-                "total_spent": total_spent,
-                "last_visit": last_visit
-            }
-        }
-    )
-    
-    customer["total_orders"] = total_orders
-    customer["total_spent"] = total_spent
-    customer["last_visit"] = last_visit
-    customer["orders"] = orders
-    
-    return customer
+    enriched = await _customer_activity(customer, user_org_id)
+    await db.customers.update_one({"id": customer_id, "organization_id": user_org_id}, {"$set": {"total_orders": enriched["total_orders"], "total_spent": enriched["total_spent"], "last_visit": enriched["last_visit"]}})
+    return enriched
 
 
 @api_router.get("/customers/phone/{phone}")
