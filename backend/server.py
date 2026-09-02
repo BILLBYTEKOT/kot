@@ -5993,6 +5993,20 @@ async def create_order(
     # Only UUID generation + database insert in critical path
     
     user_org_id = get_secure_org_id(current_user)
+    
+    # IDEMPOTENCY: Check if order with this idempotency key already exists
+    if hasattr(order_data, 'idempotency_key') and order_data.idempotency_key:
+        existing_order = await db.orders.find_one(
+            {
+                "idempotency_key": order_data.idempotency_key,
+                "organization_id": user_org_id
+            },
+            {"_id": 0}
+        )
+        if existing_order:
+            print(f"⚠️ Duplicate order prevented via idempotency key: {order_data.idempotency_key}")
+            return existing_order  # Return existing order instead of creating duplicate
+    
     table_id = order_data.table_id or "counter"
     table_number = order_data.table_number or 0
     
@@ -6047,6 +6061,10 @@ async def create_order(
     doc = order_obj.model_dump()
     doc["created_at"] = doc["created_at"].isoformat()
     doc["updated_at"] = doc["updated_at"].isoformat()
+    
+    # Add idempotency key if provided
+    if hasattr(order_data, 'idempotency_key') and order_data.idempotency_key:
+        doc["idempotency_key"] = order_data.idempotency_key
 
     # CRITICAL PATH: Single database insert (target: <100ms)
     await db.orders.insert_one(doc)

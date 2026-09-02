@@ -1180,6 +1180,9 @@ const OrdersPage = ({ user }) => {
     const selectedTable = capturedTableId ? tables.find(t => t.id === capturedTableId) : null;
     const customerName = formData.customer_name?.trim() || (businessSettings?.kot_mode_enabled === false ? 'Cash Sale' : '');
 
+    // Generate idempotency key to prevent duplicate orders (same items + table + timestamp window)
+    const idempotencyKey = `${user?.id}_${capturedTableId || 'notable'}_${Date.now()}`;
+
     // Close menu immediately for instant UX — no temp order, wait for real server response
     setShowMenuPage(false);
     setCartExpanded(false);
@@ -1197,7 +1200,8 @@ const OrdersPage = ({ user }) => {
           items: capturedItems,
           customer_name: customerName,
           customer_phone: capturedPhone,
-          frontend_origin: window.location.origin
+          frontend_origin: window.location.origin,
+          idempotency_key: idempotencyKey  // Add idempotency key
         }
         // No timeout - let it complete naturally
       });
