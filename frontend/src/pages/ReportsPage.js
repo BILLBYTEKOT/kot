@@ -128,7 +128,7 @@ const ReportsPage = ({ user }) => {
     week: () => {
       const end = new Date();
       const start = new Date();
-      start.setDate(start.getDate() - 7);
+      start.setDate(start.getDate() - 6);
       return { 
         start_date: formatLocalDate(start), 
         end_date: formatLocalDate(end) 
@@ -137,7 +137,7 @@ const ReportsPage = ({ user }) => {
     fifteenDays: () => {
       const end = new Date();
       const start = new Date();
-      start.setDate(start.getDate() - 15);
+      start.setDate(start.getDate() - 14);
       return {
         start_date: formatLocalDate(start),
         end_date: formatLocalDate(end)
@@ -173,6 +173,7 @@ const ReportsPage = ({ user }) => {
 
   const applyPreset = useCallback((preset) => {
     setActivePreset(preset);
+    setOrdersPage(1);
     setDateRange(datePresets[preset]());
   }, [datePresets]);
 

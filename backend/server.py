@@ -3142,6 +3142,27 @@ async def get_me(current_user: dict = Depends(get_current_user)):
     return user_data
 
 
+IST = timezone(timedelta(hours=5, minutes=30))
+
+def _ist_day_bounds(date_value: str):
+    """Return UTC [start, exclusive_end) for an India calendar date."""
+    day = datetime.strptime(date_value, "%Y-%m-%d").replace(tzinfo=IST)
+    return day.astimezone(timezone.utc), (day + timedelta(days=1)).astimezone(timezone.utc)
+
+def _ist_range_bounds(start_date: str, end_date: str):
+    start, _ = _ist_day_bounds(start_date)
+    _, end = _ist_day_bounds(end_date)
+    return start, end
+
+def _order_amount(order: dict) -> float:
+    return float(order.get("total") or order.get("grand_total") or order.get("total_amount") or 0)
+
+
+def _is_bill_counted(order: dict) -> bool:
+    status = str(order.get("status") or "").lower()
+    return status not in {"cancelled", "canceled", "draft", "pending"} and _order_amount(order) >= 0
+
+
 @api_router.get("/dashboard")
 async def get_dashboard(current_user: dict = Depends(get_current_user)):
     """Get dashboard statistics and metrics"""
@@ -3159,17 +3180,14 @@ async def get_dashboard(current_user: dict = Depends(get_current_user)):
         # Convert to UTC for database query
         today_utc = today_ist.astimezone(timezone.utc)
         
-        # Get today's orders (all statuses)
+        # Get today's orders using the complete IST calendar-day window.
+        tomorrow_utc = (today_ist + timedelta(days=1)).astimezone(timezone.utc)
         today_orders = await db.orders.find({
             "organization_id": user_org_id,
-            "created_at": {"$gte": today_utc.isoformat()}
-        }, {"_id": 0}).to_list(1000)
-        
-        # Get today's completed orders only
-        today_completed_orders = [order for order in today_orders if order.get("status") in ["completed", "paid"]]
-        
-        # Calculate today's revenue (completed orders only)
-        todays_revenue = sum(order.get("total", 0) for order in today_completed_orders)
+            "created_at": {"$gte": today_utc.isoformat(), "$lt": tomorrow_utc.isoformat()}
+        }, {"_id": 0}).to_list(5000)
+        today_completed_orders = [order for order in today_orders if _is_bill_counted(order)]
+        todays_revenue = sum(_order_amount(order) for order in today_completed_orders)
         
         # Get pending orders count
         pending_orders = await db.orders.count_documents({
@@ -9788,14 +9806,12 @@ async def export_report(
     current_user: dict = Depends(get_current_user)
 ):
     user_org_id = get_secure_org_id(current_user)
-    # Date inputs are calendar dates in India; query MongoDB using UTC bounds.
-    IST = timezone(timedelta(hours=5, minutes=30))
-    start = datetime.fromisoformat(start_date).replace(tzinfo=IST).astimezone(timezone.utc)
-    end = datetime.fromisoformat(end_date).replace(hour=23, minute=59, second=59, microsecond=999999, tzinfo=IST).astimezone(timezone.utc)
-
+    # Date inputs are India calendar dates; use an exclusive next-day UTC bound.
+    start, end = _ist_range_bounds(start_date, end_date)
     orders = await db.orders.find({
-        "organization_id": user_org_id
-    }, {"_id": 0}).to_list(1000)
+        "organization_id": user_org_id,
+        "created_at": {"$gte": start.isoformat(), "$lt": end.isoformat()}
+    }, {"_id": 0}).to_list(5000)
     
     filtered_orders = []
 
@@ -9811,19 +9827,22 @@ async def export_report(
         # Make sure order_date is timezone-aware
         if order_date.tzinfo is None:
             order_date = order_date.replace(tzinfo=timezone.utc)
-        if start <= order_date <= end:
+        if start <= order_date < end and _is_bill_counted(order):
             filtered_orders.append(order)
 
     return {
         "orders": filtered_orders,
-        "total_sales": sum(o.get("total", 0) for o in filtered_orders),
+        "total_sales": sum(_order_amount(order) for order in filtered_orders),
     }
 
 
 @api_router.get("/reports/weekly")
 async def weekly_report(current_user: dict = Depends(get_current_user)):
     user_org_id = get_secure_org_id(current_user)
-    week_ago = datetime.now(timezone.utc) - timedelta(days=7)
+    now_ist = datetime.now(IST)
+    end_date = now_ist.date() + timedelta(days=1)
+    week_start = end_date - timedelta(days=7)
+    week_ago, week_end = _ist_range_bounds(week_start.isoformat(), (end_date - timedelta(days=1)).isoformat())
     
     # Optimized: Use database aggregation instead of filtering in Python
     pipeline = [
@@ -9831,7 +9850,7 @@ async def weekly_report(current_user: dict = Depends(get_current_user)):
             "$match": {
                 "status": "completed",
                 "organization_id": user_org_id,
-                "created_at": {"$gte": week_ago.isoformat()}
+                "created_at": {"$gte": week_ago.isoformat(), "$lt": week_end.isoformat()}
             }
         },
         {
@@ -9866,7 +9885,10 @@ async def weekly_report(current_user: dict = Depends(get_current_user)):
 @api_router.get("/reports/monthly")
 async def monthly_report(current_user: dict = Depends(get_current_user)):
     user_org_id = get_secure_org_id(current_user)
-    month_ago = datetime.now(timezone.utc) - timedelta(days=30)
+    now_ist = datetime.now(IST)
+    month_end_date = now_ist.date() + timedelta(days=1)
+    month_start_date = month_end_date - timedelta(days=30)
+    month_ago, month_end = _ist_range_bounds(month_start_date.isoformat(), (month_end_date - timedelta(days=1)).isoformat())
     
     # Optimized: Use database aggregation instead of filtering in Python
     pipeline = [
@@ -9874,7 +9896,7 @@ async def monthly_report(current_user: dict = Depends(get_current_user)):
             "$match": {
                 "status": "completed",
                 "organization_id": user_org_id,
-                "created_at": {"$gte": month_ago.isoformat()}
+                "created_at": {"$gte": month_ago.isoformat(), "$lt": month_end.isoformat()}
             }
         },
         {
