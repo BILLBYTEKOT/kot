@@ -13,6 +13,8 @@ const CustomersPage = ({ user }) => {
   const [error, setError] = useState('');
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [detailLoading, setDetailLoading] = useState(false);
 
   const loadCustomers = async (query = '') => {
     setLoading(true); setError('');
@@ -28,6 +30,16 @@ const CustomersPage = ({ user }) => {
   useEffect(() => { loadCustomers(); }, []);
   useEffect(() => { const timer = window.setTimeout(() => loadCustomers(search.trim()), 300); return () => window.clearTimeout(timer); }, [search, page]);
   const pageCount = Math.max(1, Math.ceil(total / 25));
+
+  const viewCustomer = async (customer) => {
+    setDetailLoading(true);
+    try {
+      const response = await apiClient.get(`${API}/customers/${encodeURIComponent(customer.id)}`);
+      setSelectedCustomer(response.data);
+    } catch (requestError) {
+      setError(requestError.response?.data?.detail || 'Unable to load customer details.');
+    } finally { setDetailLoading(false); }
+  };
 
   const totals = useMemo(() => ({
     customers: customers.length,
@@ -55,9 +67,10 @@ const CustomersPage = ({ user }) => {
           <article className="panel spend-panel"><div className="panel-heading"><h2>Top Customers by Spend</h2><button type="button" className="text-action">View All →</button></div><div className="empty-spend"><div className="empty-illustration"><Users size={34}/></div><strong>No customer spend data yet</strong><p>Once customers place orders, their spending stats will appear here.</p></div></article>
         </section>
 
-        <section className="panel customer-list-panel"><div className="table-toolbar"><label className="search-control"><span className="sr-only">Search customers</span><Search size={18}/><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search name, phone or email" /></label><select aria-label="Customer status"><option>All Customers</option></select><select aria-label="Visit count"><option>All Visits</option></select><button type="button" className="primary-action"><UserPlus size={16}/> Add Customer</button></div>{error && <p role="alert" className="error-message">{error}</p>}{loading ? <p className="table-message">Loading customers…</p> : customers.length === 0 ? <p className="table-message">No customers found. Customers will appear here after their first bill.</p> : <div className="responsive-table"><table><thead><tr><th>Customer</th><th>Contact</th><th>Visits</th><th>Total Spent</th><th>Last Visit</th><th>Actions</th></tr></thead><tbody>{customers.map((customer) => <tr key={customer.id}><td><span className="customer-avatar">{(customer.name || 'G').charAt(0).toUpperCase()}</span><strong>{customer.name || 'Guest'}</strong></td><td><span className="contact-line"><Phone size={14}/>{customer.phone || '—'}</span>{customer.email && <small>{customer.email}</small>}</td><td>{customer.total_orders || 0}</td><td><strong>{money(customer.total_spent)}</strong></td><td>{customer.last_visit ? new Date(customer.last_visit).toLocaleDateString('en-IN') : '—'}</td><td><button type="button" className="row-action"><Eye size={14}/> View</button><button type="button" className="icon-action" aria-label={`More actions for ${customer.name || 'guest'}`}><MoreVertical size={16}/></button></td></tr>)}</tbody></table></div>}</section>
+        <section className="panel customer-list-panel"><div className="table-toolbar"><label className="search-control"><span className="sr-only">Search customers</span><Search size={18}/><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search name, phone or email" /></label><select aria-label="Customer status"><option>All Customers</option></select><select aria-label="Visit count"><option>All Visits</option></select><button type="button" className="primary-action"><UserPlus size={16}/> Add Customer</button></div>{error && <p role="alert" className="error-message">{error}</p>}{loading ? <p className="table-message">Loading customers…</p> : customers.length === 0 ? <p className="table-message">No customers found. Customers will appear here after their first bill.</p> : <div className="responsive-table"><table><thead><tr><th>Customer</th><th>Contact</th><th>Visits</th><th>Total Spent</th><th>Last Visit</th><th>Actions</th></tr></thead><tbody>{customers.map((customer) => <tr key={customer.id}><td><span className="customer-avatar">{(customer.name || 'G').charAt(0).toUpperCase()}</span><strong>{customer.name || 'Guest'}</strong></td><td><span className="contact-line"><Phone size={14}/>{customer.phone || '—'}</span>{customer.email && <small>{customer.email}</small>}</td><td>{customer.visits ?? customer.total_orders ?? 0}</td><td><strong>{money(customer.total_spent)}</strong></td><td>{customer.last_visit ? new Date(customer.last_visit).toLocaleDateString('en-IN') : '—'}</td><td><button type="button" className="row-action" onClick={() => viewCustomer(customer)} disabled={detailLoading}><Eye size={14}/> {detailLoading ? 'Loading…' : 'View'}</button><button type="button" className="icon-action" aria-label={`More actions for ${customer.name || 'guest'}`}><MoreVertical size={16}/></button></td></tr>)}</tbody></table></div>}</section>
         {!loading && customers.length > 0 && <footer className="customer-pagination"><span>Showing {(page - 1) * 25 + 1} to {Math.min(page * 25, total)} of {total} customers</span><div><button type="button" disabled={page <= 1} onClick={() => setPage((value) => value - 1)}>Previous</button><strong>{page}</strong><button type="button" disabled={page >= pageCount} onClick={() => setPage((value) => value + 1)}>Next</button></div></footer>}
       </div>
+      {selectedCustomer && <div className="customer-modal-backdrop" role="presentation" onClick={(event) => { if (event.target === event.currentTarget) setSelectedCustomer(null); }}><section className="customer-modal" role="dialog" aria-modal="true" aria-labelledby="customer-detail-title"><div className="panel-heading"><div><p className="eyebrow">Customer profile</p><h2 id="customer-detail-title">{selectedCustomer.name || 'Guest'}</h2><p>{selectedCustomer.phone || 'No phone'}{selectedCustomer.email ? ` · ${selectedCustomer.email}` : ''}</p></div><button type="button" className="icon-action" aria-label="Close customer details" onClick={() => setSelectedCustomer(null)}>×</button></div><div className="customer-detail-stats"><div><span>Visits</span><strong>{selectedCustomer.visits ?? selectedCustomer.total_orders ?? 0}</strong></div><div><span>Total spent</span><strong>{money(selectedCustomer.total_spent)}</strong></div><div><span>Outstanding</span><strong>{money(selectedCustomer.outstanding)}</strong></div></div><h3>Bill history</h3>{(selectedCustomer.orders || []).length ? <div className="customer-history">{selectedCustomer.orders.map((order) => <div key={order.id || order.invoice_number}><span>#{order.invoice_number || order.id?.slice(0, 8)}</span><span>{order.created_at ? new Date(order.created_at).toLocaleDateString('en-IN') : '—'}</span><strong>{money(order.total)}</strong></div>)}</div> : <p className="table-message">No completed bills found for this customer.</p>}</section></div>}
     </Layout>
   );
 };
