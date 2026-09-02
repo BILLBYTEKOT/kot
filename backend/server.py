@@ -3163,6 +3163,9 @@ def _is_bill_counted(order: dict) -> bool:
     return status not in {"cancelled", "canceled", "draft", "pending"} and _order_amount(order) >= 0
 
 
+REPORT_BILL_STATUSES = ["completed", "paid", "billed", "settled"]
+
+
 @api_router.get("/dashboard")
 async def get_dashboard(current_user: dict = Depends(get_current_user)):
     """Get dashboard statistics and metrics"""
@@ -9622,8 +9625,7 @@ async def daily_report(current_user: dict = Depends(get_current_user)):
     # Include all orders from today that have been paid (not just completed)
     today_orders = await db.orders.find({
         "$or": [
-            {"status": "completed"},
-            {"status": "paid"},
+            {"status": {"$in": REPORT_BILL_STATUSES}},
             {"payment_received": {"$gt": 0}},  # Any order with payment received
             {"is_credit": False, "total": {"$gt": 0}}  # Non-credit orders
         ],
@@ -9635,7 +9637,7 @@ async def daily_report(current_user: dict = Depends(get_current_user)):
     pipeline = [
         {
             "$match": {
-                "status": {"$in": ["completed", "paid"]},
+                "status": {"$in": REPORT_BILL_STATUSES},
                 "organization_id": user_org_id,
                 "created_at": {"$gte": today_utc_str}
             }
@@ -9848,7 +9850,7 @@ async def weekly_report(current_user: dict = Depends(get_current_user)):
     pipeline = [
         {
             "$match": {
-                "status": "completed",
+                "status": {"$in": REPORT_BILL_STATUSES},
                 "organization_id": user_org_id,
                 "created_at": {"$gte": week_ago.isoformat(), "$lt": week_end.isoformat()}
             }
@@ -9894,7 +9896,7 @@ async def monthly_report(current_user: dict = Depends(get_current_user)):
     pipeline = [
         {
             "$match": {
-                "status": "completed",
+                "status": {"$in": REPORT_BILL_STATUSES},
                 "organization_id": user_org_id,
                 "created_at": {"$gte": month_ago.isoformat(), "$lt": month_end.isoformat()}
             }
@@ -9933,7 +9935,7 @@ async def best_selling_report(current_user: dict = Depends(get_current_user)):
     user_org_id = get_secure_org_id(current_user)
     
     orders = await db.orders.find({
-        "status": "completed",
+        "status": {"$in": REPORT_BILL_STATUSES},
         "organization_id": user_org_id
     }, {"_id": 0}).to_list(1000)
     
@@ -9980,7 +9982,7 @@ async def top_items_report(current_user: dict = Depends(get_current_user)):
     user_org_id = get_secure_org_id(current_user)
     
     orders = await db.orders.find({
-        "status": "completed",
+        "status": {"$in": REPORT_BILL_STATUSES},
         "organization_id": user_org_id
     }, {"_id": 0}).to_list(1000)
     
@@ -10013,7 +10015,7 @@ async def staff_performance_report(current_user: dict = Depends(get_current_user
     user_org_id = get_secure_org_id(current_user)
     
     orders = await db.orders.find({
-        "status": "completed",
+        "status": {"$in": REPORT_BILL_STATUSES},
         "organization_id": user_org_id
     }, {"_id": 0}).to_list(1000)
     
@@ -10043,7 +10045,7 @@ async def peak_hours_report(current_user: dict = Depends(get_current_user)):
     user_org_id = get_secure_org_id(current_user)
     
     orders = await db.orders.find({
-        "status": "completed",
+        "status": {"$in": REPORT_BILL_STATUSES},
         "organization_id": user_org_id
     }, {"_id": 0}).to_list(1000)
     
@@ -10073,7 +10075,7 @@ async def category_analysis_report(current_user: dict = Depends(get_current_user
     user_org_id = get_secure_org_id(current_user)
     
     orders = await db.orders.find({
-        "status": "completed",
+        "status": {"$in": REPORT_BILL_STATUSES},
         "organization_id": user_org_id
     }, {"_id": 0}).to_list(1000)
     
