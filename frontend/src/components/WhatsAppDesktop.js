@@ -205,20 +205,27 @@ const WhatsAppDesktop = ({ isElectron: isElectronProp }) => {
 
     setSending(true);
 
-    try {
-      const bodyParams = selectedTemplateConfig.buildParams({
-        customerName,
-        orderId,
-        amount,
-        restaurantName
-      });
+  try {
+  // Receipt links must use the order's server-issued tracking token. The
+  // generic template endpoint cannot safely derive that token from an invoice
+  // number, which makes links shared from the desktop app show as unavailable.
+  const response = selectedTemplate === 'payment_receipt_with_invoice_link'
+  ? await axios.post(`${API}/whatsapp/send-receipt/${encodeURIComponent(orderId.trim())}`, {
+  phone_number: phone,
+  customer_name: customerName || undefined
+  })
+  : await axios.post(`${API}/whatsapp/cloud/send-template`, {
+  phone_number: phone,
+  template_name: selectedTemplate,
+  body_params: selectedTemplateConfig.buildParams({
+  customerName,
+  orderId,
+  amount,
+  restaurantName
+  }),
+  customer_name: customerName || undefined
+  });
 
-      const response = await axios.post(`${API}/whatsapp/cloud/send-template`, {
-        phone_number: phone,
-        template_name: selectedTemplate,
-        body_params: bodyParams,
-        customer_name: customerName || undefined
-      });
 
       if (response.data?.success) {
         toast.success('Approved utility template sent via WhatsApp Cloud API');
