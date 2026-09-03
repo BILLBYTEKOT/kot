@@ -2488,12 +2488,24 @@ async def generate_receipt_pdf(order: dict, business: dict) -> StreamingResponse
     )
 
     styles = getSampleStyleSheet()
+    theme = str(business.get("receipt_theme", "classic") or "classic").lower()
+    theme_palette = {
+        "classic": {"accent": "#1f2937", "soft": "#f3f4f6", "ink": "#111827"},
+        "modern": {"accent": "#0f766e", "soft": "#ecfdf5", "ink": "#134e4a"},
+        "minimal": {"accent": "#475569", "soft": "#f8fafc", "ink": "#0f172a"},
+        "elegant": {"accent": "#92400e", "soft": "#fffbeb", "ink": "#451a03"},
+        "compact": {"accent": "#166534", "soft": "#f0fdf4", "ink": "#14532d"},
+        "detailed": {"accent": "#4338ca", "soft": "#eef2ff", "ink": "#1e1b4b"},
+    }.get(theme, {"accent": "#1f2937", "soft": "#f3f4f6", "ink": "#111827"})
+    accent_color = colors.HexColor(theme_palette["accent"])
+    soft_color = colors.HexColor(theme_palette["soft"])
+    ink_color = colors.HexColor(theme_palette["ink"])
     title_style = ParagraphStyle(
         'ReceiptTitle',
         parent=styles['Heading1'],
-        fontSize=18,
+        fontSize=20,
         alignment=TA_CENTER,
-        textColor=colors.HexColor('#18181b'),
+        textColor=ink_color,
         spaceAfter=6
     )
     meta_style = ParagraphStyle(
@@ -2509,7 +2521,7 @@ async def generate_receipt_pdf(order: dict, business: dict) -> StreamingResponse
         parent=styles['Heading2'],
         fontSize=11,
         alignment=TA_LEFT,
-        textColor=colors.HexColor('#27272a'),
+        textColor=accent_color,
         spaceBefore=8,
         spaceAfter=6
     )
@@ -2587,13 +2599,13 @@ async def generate_receipt_pdf(order: dict, business: dict) -> StreamingResponse
 
     item_table = Table(item_rows, colWidths=[95 * mm, 20 * mm, 30 * mm, 35 * mm])
     item_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#18181b')),
+        ('BACKGROUND', (0, 0), (-1, 0), accent_color),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
         ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
         ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
         ('FONTSIZE', (0, 0), (-1, -1), 10),
         ('ALIGN', (1, 0), (-1, -1), 'RIGHT'),
-        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#fafafa')]),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, soft_color]),
         ('BOX', (0, 0), (-1, -1), 0.5, colors.HexColor('#d4d4d8')),
         ('INNERGRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#e4e4e7')),
         ('LEFTPADDING', (0, 0), (-1, -1), 8),
@@ -2616,7 +2628,9 @@ async def generate_receipt_pdf(order: dict, business: dict) -> StreamingResponse
         ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
         ('FONTSIZE', (0, 0), (-1, -1), 10),
         ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
-        ('LINEABOVE', (0, -1), (-1, -1), 1, colors.HexColor('#18181b')),
+        ('BACKGROUND', (0, -1), (-1, -1), soft_color),
+        ('TEXTCOLOR', (0, -1), (-1, -1), ink_color),
+        ('LINEABOVE', (0, -1), (-1, -1), 1.5, accent_color),
         ('TOPPADDING', (0, 0), (-1, -1), 6),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
     ]))
