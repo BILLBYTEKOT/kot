@@ -1628,7 +1628,7 @@ const SettingsPage = ({ user }) => {
                 </div>
                 <span className="rounded-full bg-violet-50 px-3 py-1 text-xs font-semibold text-violet-700">Shared invoice links</span>
               </div>
-              <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {themes.length > 0 ? themes.map((theme) => (
                   <button
                     key={theme.id}
@@ -1636,7 +1636,7 @@ const SettingsPage = ({ user }) => {
                     onClick={() => setBusinessSettings({ ...businessSettings, receipt_theme: theme.id })}
                     data-testid={`invoice-design-${theme.id}`}
                     aria-pressed={businessSettings.receipt_theme === theme.id}
-                    className={`p-4 border-2 rounded-lg text-left transition-all ${
+                    className={`group flex min-h-48 flex-col p-4 border-2 rounded-xl text-left transition-all focus:outline-none focus:ring-2 focus:ring-violet-400 ${
                       businessSettings.receipt_theme === theme.id
                         ? 'border-violet-600 bg-violet-50'
                         : 'border-gray-200 hover:border-gray-300'
@@ -1654,9 +1654,9 @@ const SettingsPage = ({ user }) => {
                 )) : (
                   // Fallback themes if API fails
                   [
-                    { id: 'classic', name: 'Classic', description: 'Traditional receipt format', recommended_width: '80mm' },
-                    { id: 'modern', name: 'Modern', description: 'Modern with emojis and borders', recommended_width: '80mm' },
-                    { id: 'minimal', name: 'Minimal', description: 'Clean and simple design', recommended_width: '80mm' },
+                    { id: 'classic', name: 'Classic', description: 'Timeless dark header with strong totals', recommended_width: '80mm' },
+                    { id: 'modern', name: 'Modern', description: 'Teal hospitality style with clear sections', recommended_width: 'A4 / 80mm' },
+                    { id: 'minimal', name: 'Minimal', description: 'Clean typography for a calm, modern bill', recommended_width: '80mm' },
                     { id: 'elegant', name: 'Elegant', description: 'Professional and elegant', recommended_width: '80mm' },
                     { id: 'compact', name: 'Compact', description: 'Space-saving 58mm format', recommended_width: '58mm' },
                     { id: 'detailed', name: 'Detailed', description: 'Comprehensive invoice format', recommended_width: '80mm' }
@@ -1665,7 +1665,7 @@ const SettingsPage = ({ user }) => {
                       key={theme.id}
                       type="button"
                       onClick={() => setBusinessSettings({ ...businessSettings, receipt_theme: theme.id })}
-                      className={`p-4 border-2 rounded-lg text-left transition-all ${
+                      className={`group flex min-h-48 flex-col p-4 border-2 rounded-xl text-left transition-all focus:outline-none focus:ring-2 focus:ring-violet-400 ${
                         businessSettings.receipt_theme === theme.id
                           ? 'border-violet-600 bg-violet-50'
                           : 'border-gray-200 hover:border-gray-300'
