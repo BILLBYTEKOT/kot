@@ -3837,11 +3837,15 @@ async def setup_business(
     if current_user["role"] != "admin":
         raise HTTPException(status_code=403, detail="Only admin can setup business")
 
+    settings_data = settings.model_dump()
     await db.users.update_one(
         {"id": current_user["id"]},
-        {"$set": {"business_settings": settings.model_dump(), "setup_completed": True}},
+        {"$set": {"business_settings": settings_data, "setup_completed": True}},
     )
-    return {"message": "Business setup completed", "settings": settings.model_dump()}
+    # get_current_user uses a short-lived in-process cache. Clear it after this
+    # write so the next /auth/me request cannot return the pre-setup user.
+    invalidate_user_cache(current_user["id"])
+    return {"message": "Business setup completed", "settings": settings_data, "setup_completed": True}
 
 
 @api_router.put("/business/settings")
