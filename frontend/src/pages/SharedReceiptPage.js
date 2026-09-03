@@ -1,12 +1,11 @@
 import axios from 'axios';
-import { Download, Printer, CheckCircle2 } from 'lucide-react';
+import { CheckCircle2, Copy, Download, ExternalLink, Printer, Share2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 
-const CONFIGURED_BACKEND_URL = process.env.REACT_APP_BACKEND_URL || '';
-// Public receipt links are opened outside the authenticated app (including
-// WhatsApp), so always call the configured API host in deployed builds.
+const CONFIGURED_BACKEND_URL = (process.env.REACT_APP_BACKEND_URL || process.env.REACT_APP_PUBLIC_BACKEND_URL || '').replace(/\/$/, '');
 const BACKEND_URL = CONFIGURED_BACKEND_URL || window.location.origin;
+const getReceiptUrl = (token, query = '') => `${BACKEND_URL}/api/public/receipt/${encodeURIComponent(token || '')}${query}`;
 const CURRENCY_SYMBOLS = { INR: '₹', USD: '$', EUR: '€', GBP: '£', AED: 'د.إ' };
 const THEMES = {
   classic: { accent: 'bg-slate-900', soft: 'bg-slate-50', border: 'border-slate-200', ink: 'text-slate-900', muted: 'text-slate-500', radius: 'rounded-2xl', label: 'Classic' },
@@ -23,31 +22,42 @@ export default function SharedReceiptPage() {
   const [receipt, setReceipt] = useState(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
-  useEffect(() => { let active = true; axios.get(`${BACKEND_URL}/api/public/receipt-data/${encodeURIComponent(encodedReceipt || '')}`).then(({ data }) => active && setReceipt(data)).catch(() => active && setError('Receipt not found')).finally(() => active && setLoading(false)); return () => { active = false; }; }, [encodedReceipt]);
+  const [copied, setCopied] = useState(false);
+  const pdfUrl = useMemo(() => getReceiptUrl(encodedReceipt, '?download=1'), [encodedReceipt]);
+  const pageUrl = useMemo(() => window.location.href, []);
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    setError('');
+    axios.get(`${BACKEND_URL}/api/public/receipt-data/${encodeURIComponent(encodedReceipt || '')}`, { timeout: 15000 })
+      .then(({ data }) => active && setReceipt(data))
+      .catch(() => active && setError('This invoice link may have expired or the server is temporarily unavailable.'))
+      .finally(() => active && setLoading(false));
+    return () => { active = false; };
+  }, [encodedReceipt]);
+  const copyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(pageUrl);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1800);
+    } catch { window.prompt('Copy this invoice link:', pageUrl); }
+  };
+  const shareLink = async () => {
+    if (navigator.share) await navigator.share({ title: 'Invoice', text: 'View and download your invoice', url: pageUrl });
+    else await copyLink();
+  };
   const theme = THEMES[receipt?.invoice_presentation?.receipt_theme] || THEMES.classic;
   const currency = CURRENCY_SYMBOLS[receipt?.currency] || CURRENCY_SYMBOLS.INR;
   const customization = receipt?.invoice_presentation?.print_customization || {};
   const items = Array.isArray(receipt?.items) ? receipt.items : [];
   const show = (key, fallback = true) => customization[key] ?? fallback;
-  const download = () => {
-    // Use the server PDF URL directly instead of an in-memory Blob. WhatsApp and
-    // other mobile in-app browsers frequently block synthetic Blob downloads.
-    const downloadUrl = `${BACKEND_URL}/api/public/receipt/${encodeURIComponent(encodedReceipt)}?download=1`;
-    const link = document.createElement('a');
-    link.href = downloadUrl;
-    link.target = '_blank';
-    link.rel = 'noopener noreferrer';
-    link.setAttribute('download', `invoice-${receipt.invoice_number || encodedReceipt}.pdf`);
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-  };
+  const download = () => window.open(pdfUrl, '_blank', 'noopener,noreferrer');
   if (loading) return <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4"><div className="bg-white rounded-2xl p-6 shadow text-slate-600">Loading invoice...</div></div>;
   if (error || !receipt) return <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4"><div className="bg-white rounded-2xl p-7 shadow text-center"><h1 className="text-xl font-bold text-slate-900">Invoice unavailable</h1><p className="mt-2 text-sm text-slate-500">{error || 'This invoice link is invalid.'}</p></div></div>;
   const presentation = receipt.invoice_presentation || {};
   return <main className="min-h-screen bg-slate-100 px-3 py-6 print:bg-white print:p-0">
     <div className="mx-auto max-w-3xl">
-      <div className="mb-4 flex flex-wrap justify-end gap-2 print:hidden"><button onClick={download} className={`inline-flex items-center gap-2 ${theme.accent} ${theme.accent === 'bg-white' ? 'text-slate-900 border border-slate-300' : 'text-white'} rounded-xl px-4 py-2.5 text-sm font-semibold shadow-sm`}><Download size={17} aria-hidden="true" /> Download PDF</button><button onClick={() => window.print()} className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-900"><Printer size={17} aria-hidden="true" /> Print</button></div>
+      <div className="mb-4 flex flex-wrap items-center justify-end gap-2 print:hidden"><a href={pdfUrl} target="_blank" rel="noopener noreferrer" className={`inline-flex items-center gap-2 ${theme.accent} ${theme.accent === 'bg-white' ? 'text-slate-900 border border-slate-300' : 'text-white'} rounded-xl px-4 py-2.5 text-sm font-semibold shadow-sm`}><Download size={17} aria-hidden="true" /> Download PDF</a><button type="button" onClick={download} className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-900"><ExternalLink size={17} aria-hidden="true" /> Open PDF</button><button type="button" onClick={() => window.print()} className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-900"><Printer size={17} aria-hidden="true" /> Print</button><button type="button" onClick={shareLink} className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-900"><Share2 size={17} aria-hidden="true" /> Share</button><button type="button" onClick={copyLink} className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-900"><Copy size={17} aria-hidden="true" /> {copied ? 'Copied' : 'Copy link'}</button></div>
       <article className={`overflow-hidden border ${theme.border} bg-white shadow-xl ${theme.radius} print:rounded-none print:border-0 print:shadow-none`}>
         <header className={`px-6 py-7 sm:px-10 ${theme.accent} ${theme.accent === 'bg-white' ? 'border-b' : ''} ${theme.accent === 'bg-white' ? 'text-slate-900' : 'text-white'}`}><div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between"><div className="flex items-start gap-4">{show('show_logo') && presentation.logo_url ? <img src={presentation.logo_url} alt={`${receipt.restaurant_name} logo`} className="h-14 w-14 rounded-xl object-contain bg-white p-1" /> : null}<div><p className="text-xs font-semibold uppercase tracking-[0.22em] opacity-70">{theme.label} invoice</p><h1 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">{receipt.restaurant_name || 'Restaurant'}</h1>{show('show_tagline') && presentation.tagline ? <p className="mt-1 text-sm opacity-80">{presentation.tagline}</p> : null}</div></div><div className="sm:text-right"><p className="text-xs uppercase tracking-wider opacity-70">Invoice number</p><p className="mt-1 text-lg font-semibold">{receipt.invoice_number || 'RECEIPT'}</p></div></div><div className="mt-5 flex flex-wrap gap-x-5 gap-y-1 text-sm opacity-80">{show('show_address') && receipt.restaurant_address ? <span>{receipt.restaurant_address}</span> : null}{show('show_phone') && receipt.restaurant_phone ? <span>{receipt.restaurant_phone}</span> : null}{show('show_email') && presentation.email ? <span>{presentation.email}</span> : null}</div></header>
         <div className="space-y-7 px-6 py-7 sm:px-10"><div className="grid gap-4 sm:grid-cols-3"><div><p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Issued</p><p className="mt-1 text-sm font-medium text-slate-900">{formatDate(receipt.created_at)}</p></div>{show('show_customer_name') && <div><p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Bill to</p><p className="mt-1 text-sm font-medium text-slate-900">{receipt.customer_name || 'Guest'}</p></div>}{show('show_table_number') && <div><p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Table</p><p className="mt-1 text-sm font-medium text-slate-900">{receipt.table_number || 'N/A'}</p></div>}</div>

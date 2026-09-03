@@ -2611,7 +2611,11 @@ async def generate_receipt_pdf(order: dict, business: dict) -> StreamingResponse
     return StreamingResponse(
         buffer,
         media_type="application/pdf",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Cache-Control": "private, no-store",
+            "X-Content-Type-Options": "nosniff",
+        }
     )
 
 
@@ -10887,6 +10891,8 @@ async def receipt_public(tracking_token: str, download: int = 0):
         {"_id": 0, "business_settings": 1}
     )
     business = admin.get("business_settings", {}) if admin else {}
+    if not isinstance(business, dict):
+        business = {}
     sanitized_items = []
     for item in order.get("items") or []:
         sanitized_items.append({
@@ -11003,7 +11009,7 @@ async def receipt_public(tracking_token: str, download: int = 0):
           <div class="subtitle">Receipt #{invoice_label}</div>
         </div>
         <div class="actions">
-          <a class="btn btn-primary" href="/api/public/receipt/{tracking_token}?download=1">Download</a>
+          <a class="btn btn-primary" href="/api/public/receipt/{tracking_token}?download=1" target="_blank" rel="noopener noreferrer" download="invoice-{invoice_label}.pdf">Download PDF</a>
           <a class="btn btn-secondary" href="javascript:window.print()">Print</a>
         </div>
       </div>
