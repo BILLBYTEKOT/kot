@@ -29,7 +29,19 @@ export default function SharedReceiptPage() {
   const customization = receipt?.invoice_presentation?.print_customization || {};
   const items = Array.isArray(receipt?.items) ? receipt.items : [];
   const show = (key, fallback = true) => customization[key] ?? fallback;
-  const download = async () => { try { const response = await axios.get(`${BACKEND_URL}/api/public/receipt/${encodedReceipt}?download=1`, { responseType: 'blob' }); const url = window.URL.createObjectURL(response.data); const link = document.createElement('a'); link.href = url; link.download = `invoice-${receipt.invoice_number || encodedReceipt}.pdf`; link.click(); window.URL.revokeObjectURL(url); } catch { setError('Unable to download this invoice. Please try again.'); } };
+  const download = () => {
+    // Use the server PDF URL directly instead of an in-memory Blob. WhatsApp and
+    // other mobile in-app browsers frequently block synthetic Blob downloads.
+    const downloadUrl = `${BACKEND_URL}/api/public/receipt/${encodeURIComponent(encodedReceipt)}?download=1`;
+    const link = document.createElement('a');
+    link.href = downloadUrl;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    link.setAttribute('download', `invoice-${receipt.invoice_number || encodedReceipt}.pdf`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  };
   if (loading) return <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4"><div className="bg-white rounded-2xl p-6 shadow text-slate-600">Loading invoice...</div></div>;
   if (error || !receipt) return <div className="min-h-screen bg-slate-100 flex items-center justify-center p-4"><div className="bg-white rounded-2xl p-7 shadow text-center"><h1 className="text-xl font-bold text-slate-900">Invoice unavailable</h1><p className="mt-2 text-sm text-slate-500">{error || 'This invoice link is invalid.'}</p></div></div>;
   const presentation = receipt.invoice_presentation || {};
