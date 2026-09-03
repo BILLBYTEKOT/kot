@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { toast } from 'sonner';
+import { logger } from './logger';
 
 // Create axios instance with default timeout and retry logic
 const apiClient = axios.create({
@@ -124,7 +125,7 @@ export const apiSilent = async (requestConfig) => {
   try {
     return await apiClient(requestConfig);
   } catch (error) {
-    console.warn('🔇 Silent API call failed:', error.message);
+    logger.debug('Silent API call failed:', error.message);
     return { data: null, error };
   }
 };
@@ -151,7 +152,7 @@ export const apiBackground = async (requestConfig) => {
     backgroundClient.interceptors.response.use(
       (response) => response,
       (error) => {
-        console.warn('🔇 Background API error:', error.message);
+        logger.debug('Background API error:', error.message);
         return Promise.reject(error);
       }
     );
@@ -159,7 +160,7 @@ export const apiBackground = async (requestConfig) => {
     const response = await backgroundClient(requestConfig);
     return response;
   } catch (error) {
-    console.warn('🔇 Background API call failed:', error.message);
+    logger.debug('Background API call failed:', error.message);
     throw error;
   }
 };

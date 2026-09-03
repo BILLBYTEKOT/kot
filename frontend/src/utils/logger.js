@@ -4,19 +4,19 @@
  */
 
 class Logger {
-  // Check if we should log (lazy evaluation to avoid localStorage access during build)
+  // Keep production output focused on actionable failures; diagnostics stay local.
   shouldLog() {
     try {
       const isDevelopment = process.env.NODE_ENV === 'development';
-      const isDebugMode = typeof window !== 'undefined' && 
-                          typeof localStorage !== 'undefined' && 
+      const isDebugMode = typeof window !== 'undefined' &&
+                          typeof localStorage !== 'undefined' &&
                           localStorage.getItem('DEBUG_MODE') === 'true';
       return isDevelopment || isDebugMode;
-    } catch (e) {
-      // If we can't access localStorage, default to production mode (no logs)
+    } catch {
       return false;
     }
   }
+
 
   log(...args) {
     if (this.shouldLog()) {
@@ -31,8 +31,7 @@ class Logger {
   }
 
   warn(...args) {
-    // Always show warnings
-    console.warn(...args);
+    if (this.shouldLog()) console.warn(...args);
   }
 
   error(...args) {

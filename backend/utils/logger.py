@@ -11,6 +11,7 @@ def get_logger(name: str) -> logging.Logger:
             "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
         ))
         logger.addHandler(handler)
+        logger.propagate = False
         log_level = os.getenv("LOG_LEVEL", "info").upper()
         logger.setLevel(getattr(logging, log_level, logging.INFO))
     return logger
