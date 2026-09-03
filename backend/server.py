@@ -2430,6 +2430,28 @@ def build_public_receipt_url(tracking_token: str, order: Optional[dict] = None, 
     return f"{get_public_site_url()}/receipt/{tracking_token}"
 
 
+async def generate_invoice_share_id() -> str:
+    """Generate a long opaque ID dedicated to one invoice share link."""
+    for _ in range(10):
+        share_id = secrets.token_urlsafe(24)
+        if not await db.orders.find_one({"invoice_share_id": share_id}, {"_id": 1}):
+            return share_id
+    raise RuntimeError("Unable to allocate invoice share ID")
+
+
+async def ensure_invoice_share_id(order: dict, organization_id: str) -> str:
+    share_id = order.get("invoice_share_id")
+    if share_id:
+        return str(share_id)
+    share_id = await generate_invoice_share_id()
+    await db.orders.update_one(
+        {"id": order.get("id"), "organization_id": organization_id, "invoice_share_id": {"$exists": False}},
+        {"$set": {"invoice_share_id": share_id}},
+    )
+    order["invoice_share_id"] = share_id
+    return share_id
+
+
 async def generate_short_tracking_token(length: int = 8) -> str:
     """Generate a short public tracking token with collision checking."""
     alphabet = "23456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
@@ -5688,6 +5710,7 @@ async def send_whatsapp_receipt_auto(
         template_name = whatsapp_api.get_bill_template_name()
         customer_name = (order.get("customer_name") or "Customer")
         tracking_token = order.get("tracking_token")
+        share_id = await ensure_invoice_share_id(order, user_org_id)
         if not tracking_token:
             tracking_token = await generate_short_tracking_token()
             await db.orders.update_one(
@@ -5697,7 +5720,7 @@ async def send_whatsapp_receipt_auto(
             order["tracking_token"] = tracking_token
 
         receipt_url = build_public_receipt_url(
-            tracking_token,
+            share_id,
             order=order,
             business=business
         )
@@ -10443,7 +10466,7 @@ Tax: {currency_symbol}{order['tax']:.2f}
                 order["tracking_token"] = tracking_token
 
             receipt_url = build_public_receipt_url(
-                tracking_token,
+                share_id,
                 order=order,
                 business=business
             )
@@ -10596,6 +10619,7 @@ async def send_receipt_via_cloud_api(
 
         # Send via WhatsApp Cloud API
         tracking_token = order.get("tracking_token")
+        share_id = await ensure_invoice_share_id(order, user_org_id)
         if not tracking_token:
             tracking_token = await generate_short_tracking_token()
             await db.orders.update_one(
@@ -10603,7 +10627,7 @@ async def send_receipt_via_cloud_api(
                 {"$set": {"tracking_token": tracking_token}},
             )
             order["tracking_token"] = tracking_token
-        receipt_url = build_public_receipt_url(tracking_token, order=order, business=business)
+        receipt_url = build_public_receipt_url(share_id, order=order, business=business)
         result = await send_whatsapp_receipt_cloud(
             phone=message_data.phone_number,
             order=order,
@@ -10880,7 +10904,7 @@ async def track_order_public(tracking_token: str):
 async def receipt_public(tracking_token: str, download: int = 0):
     """Public customer receipt page for invoice viewing/downloading."""
     order = await db.orders.find_one(
-        {"tracking_token": tracking_token},
+        {"$or": [{"invoice_share_id": tracking_token}, {"tracking_token": tracking_token}]},
         {"_id": 0}
     )
     if not order:
@@ -11025,7 +11049,7 @@ async def receipt_public(tracking_token: str, download: int = 0):
 async def receipt_public_data(tracking_token: str):
     """Public customer receipt data for frontend receipt rendering."""
     order = await db.orders.find_one(
-        {"tracking_token": tracking_token},
+        {"$or": [{"invoice_share_id": tracking_token}, {"tracking_token": tracking_token}]},
         {"_id": 0}
     )
     if not order:
