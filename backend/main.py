@@ -62,7 +62,10 @@ def setup_logging():
 
     # Suppress some verbose logs in production
     if ENVIRONMENT == "production":
-        logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
+        # Routine access and health-check requests should not flood application logs.
+        for logger_name in ("uvicorn.access", "uvicorn.error", "httpx", "httpcore", "motor"):
+            logging.getLogger(logger_name).setLevel(logging.WARNING)
+        logging.getLogger("uvicorn.access").disabled = os.getenv("LOG_ACCESS", "false").lower() != "true"
 
 
 def validate_environment():
