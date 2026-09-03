@@ -7425,7 +7425,7 @@ async def delete_order(
                 )
                 print(f"🍽️ Table cleared via fallback for deleted order {order_id}")
             except Exception as fallback_error:
-                print(f"⚠️ Table clearing fallback error: {fallback_error}")
+                print(f"⚠�� Table clearing fallback error: {fallback_error}")
     
     # Delete order
     await db.orders.delete_one(
@@ -11030,9 +11030,19 @@ async def receipt_public_data(tracking_token: str):
         {"_id": 0, "business_settings": 1}
     )
     business = admin.get("business_settings", {}) if admin else {}
+    # Older business profiles may contain null or malformed presentation data.
+    # Keep the public endpoint resilient because it is consumed by unauthenticated
+    # WhatsApp/browser clients.
+    if not isinstance(business, dict):
+        business = {}
+    print_customization = business.get("print_customization", {})
+    if not isinstance(print_customization, dict):
+        print_customization = {}
 
     sanitized_items = []
     for item in order.get("items") or []:
+        if not isinstance(item, dict):
+            continue
         sanitized_items.append({
             "name": item.get("name") or "Item",
             "quantity": float(item.get("quantity") or 0),
@@ -11067,9 +11077,9 @@ async def receipt_public_data(tracking_token: str):
             "gstin": business.get("gstin", ""),
             "fssai": business.get("fssai", ""),
             "print_customization": {
-                key: business.get("print_customization", {}).get(key)
+                key: print_customization.get(key)
                 for key in ("show_logo", "show_address", "show_phone", "show_email", "show_website", "show_gstin", "show_fssai", "show_tagline", "show_customer_name", "show_table_number")
-                if key in business.get("print_customization", {})
+                if key in print_customization
             }
         },
         "items": sanitized_items,
