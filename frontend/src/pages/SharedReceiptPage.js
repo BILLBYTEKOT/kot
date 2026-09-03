@@ -4,9 +4,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'react-router-dom';
 
 const CONFIGURED_BACKEND_URL = process.env.REACT_APP_BACKEND_URL || '';
-const BACKEND_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-  ? (CONFIGURED_BACKEND_URL || window.location.origin)
-  : window.location.origin;
+// Public receipt links are opened outside the authenticated app (including
+// WhatsApp), so always call the configured API host in deployed builds.
+const BACKEND_URL = CONFIGURED_BACKEND_URL || window.location.origin;
 const CURRENCY_SYMBOLS = { INR: '₹', USD: '$', EUR: '€', GBP: '£', AED: 'د.إ' };
 const THEMES = {
   classic: { accent: 'bg-slate-900', soft: 'bg-slate-50', border: 'border-slate-200', ink: 'text-slate-900', muted: 'text-slate-500', radius: 'rounded-2xl', label: 'Classic' },
@@ -23,7 +23,7 @@ export default function SharedReceiptPage() {
   const [receipt, setReceipt] = useState(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
-  useEffect(() => { let active = true; axios.get(`${BACKEND_URL}/api/public/receipt-data/${encodedReceipt}`).then(({ data }) => active && setReceipt(data)).catch(() => active && setError('Receipt not found')).finally(() => active && setLoading(false)); return () => { active = false; }; }, [encodedReceipt]);
+  useEffect(() => { let active = true; axios.get(`${BACKEND_URL}/api/public/receipt-data/${encodeURIComponent(encodedReceipt || '')}`).then(({ data }) => active && setReceipt(data)).catch(() => active && setError('Receipt not found')).finally(() => active && setLoading(false)); return () => { active = false; }; }, [encodedReceipt]);
   const theme = THEMES[receipt?.invoice_presentation?.receipt_theme] || THEMES.classic;
   const currency = CURRENCY_SYMBOLS[receipt?.currency] || CURRENCY_SYMBOLS.INR;
   const customization = receipt?.invoice_presentation?.print_customization || {};
